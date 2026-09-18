@@ -106,6 +106,8 @@ Keep presentation copy limited to the topic, controls, and action feedback. Put 
 
 `src/components/zniffer/` contains lane and frame views. Full logs, compact logs, and hop lists consume the same frame model. Data frames show uppercase hexadecimal payload bytes, such as `25 01 FF` for Switch Binary Set On. Longer payloads shrink to 18px before whole-byte truncation with `...`. Tooltips and accessible labels retain the full hexadecimal payload. ACK and routed error frames keep their labels. Every view scrolls through all retained frames and follows the newest frame on updates or slide entry. The shared mock history retains 64 frames to bound memory during a presentation.
 
+All live Zniffer views must filter captured frames by the main controller's Home ID unless explicitly requested otherwise. Read the Home ID from the connected main Driver. Apply the filter through `createCaptureHistory` before retaining frames or establishing the trace's time origin. Matching node IDs alone do not identify the network.
+
 Each Zniffer view has a **Clear** button. It removes captured frames without changing device state or stopping capture. Trace times display whole milliseconds. Raw timestamps retain their precision. Live captures start at 0 ms on the first accepted frame. Demonstration capture begins after priority-route setup.
 
 Opening connection setup pauses frame forwarding to all views. The Zniffer keeps running. Closing setup resumes forwarding new frames. Frames received during setup are not replayed.

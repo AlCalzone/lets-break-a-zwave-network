@@ -360,6 +360,36 @@ test("the first accepted frame starts at zero after setup delays and discarded t
   assert.equal(history.ingest(direct(), 150).frames.length, 0);
 });
 
+test("history excludes foreign Home IDs even when node IDs match the main network", () => {
+  for (const homeId of [HOME_ID, 0x01020304]) {
+    const otherHomeId = homeId === HOME_ID ? 0x01020304 : HOME_ID;
+    const history = createCaptureHistory({ homeId, networkId: String(homeId) });
+    history.start(1, 100);
+    const foreignFrames = [
+      eventFor(new SinglecastZWaveMPDU({
+        ...base, homeId: otherHomeId, ackRequested: true, payload: Bytes.from([0x25, 0x01, 0xff]),
+      })),
+      eventFor(new AckZWaveMPDU({
+        ...base, homeId: otherHomeId, sourceNodeId: 2, destinationNodeId: 1,
+      })),
+      routed({ homeId: otherHomeId }),
+      routed({ homeId: otherHomeId, direction: "inbound", routedAck: true }),
+    ];
+    for (const frame of foreignFrames) history.ingest(frame, 110);
+    assert.deepEqual(history.snapshot().frames, []);
+    assert.equal(history.snapshot().stats.captured, 0);
+    assert.equal(history.snapshot().stats.reasons["other-network"], foreignFrames.length);
+
+    const accepted = history.ingest(eventFor(new SinglecastZWaveMPDU({
+      ...base, homeId, ackRequested: true, payload: Bytes.from([0x25, 0x01, 0xff]),
+    })), 140);
+    assert.equal(accepted.frames.length, 1);
+    assert.equal(accepted.frames[0].networkId, String(homeId));
+    assert.equal(accepted.frames[0].timestampMs, 0);
+    assert.equal(accepted.frames[0].sequence, 1);
+  }
+});
+
 test("history exposes drop counts without producing placeholder rows", () => {
   const history = createCaptureHistory({ homeId: HOME_ID, networkId: "main" });
   history.start(1, 100);
