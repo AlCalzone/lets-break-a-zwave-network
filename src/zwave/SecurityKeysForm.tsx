@@ -3,9 +3,10 @@ import type { HardwareSecurityOptions } from "./hardware";
 import { errorMessage } from "./priority-route";
 import { parseSecurityKeys, securityKeyFields, type SecurityKeyDraft } from "./security-keys";
 
-export function SecurityKeysForm({ disabled, configured, onApply }: {
+export function SecurityKeysForm({ disabled, configured, hasDefaults = false, onApply }: {
   disabled: boolean;
   configured: readonly string[];
+  hasDefaults?: boolean;
   onApply(options: HardwareSecurityOptions): void;
 }) {
   const [draft, setDraft] = useState<SecurityKeyDraft>({});
@@ -36,7 +37,7 @@ export function SecurityKeysForm({ disabled, configured, onApply }: {
       {error && <p className="setup-error" role="alert">{error}</p>}
       <div className="setup-key-actions">
         <button type="submit" disabled={disabled || !Object.values(draft).some(value => value.trim())}>{configured.length ? "Replace keys" : "Save keys"}</button>
-        {configured.length > 0 && <button type="button" disabled={disabled} onClick={() => apply({})}>Clear saved keys</button>}
+        {configured.length > 0 && <button type="button" disabled={disabled} onClick={() => apply({})}>{hasDefaults ? "Reset to defaults" : "Clear saved keys"}</button>}
       </div>
     </form>
   </details>;

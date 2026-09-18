@@ -1,6 +1,6 @@
 # Let's break a Z-Wave network
 
-A browser presentation built from the Claude Design export. The 14 authored slides are preserved. A live routing demonstration is inserted after the authored slide 6, "Acknowledgments". Three mock demo slides follow the authored deck.
+A browser presentation built from the Claude Design export. The 14 authored slides are preserved. Live routing demonstrations follow "Acknowledgments" and "Retry, reroute, explore", appearing as slides 7 and 12. Three mock demo slides follow the authored deck.
 
 The routing demonstration uses real Z-Wave devices and a separate Zniffer capture adapter through Web Serial. The three appended demos retain their simulated nodes and frames. The waterfall connects to a real local `sdrtop` process and tinySA.
 
@@ -40,6 +40,10 @@ For securely included devices, expand **Network security keys** before connectin
 
 Keep network keys out of Git. Local setup notes can be stored in the ignored `.local/` directory.
 
+Local builds can include fallback keys through `VITE_ZWAVE_SECURITY_KEYS` in the ignored `.env.local` file. Its value is a JSON object with fields `S0_Legacy`, `S2_Unauthenticated`, `S2_Authenticated`, `S2_AccessControl`, `LR_Authenticated`, and `LR_AccessControl`. Each value is a 32-character hexadecimal key. Rebuild after changing this file. Saved browser keys override the fallback per field. Missing keys use the fallback, including in a new browser profile or after clearing site data. With fallback keys configured, **Reset to defaults** removes saved overrides and immediately reapplies the fallback. Invalid saved keys still produce a setup error.
+
+Fallback values are embedded in the generated browser bundle. Keep that build local and do not publish it or its keys.
+
 The Driver's cache is isolated from RCP caches in browser storage. Keep the same browser profile and localhost origin for rehearsals. Z-Wave device access is browser-side; the Node service owns only the tinySA terminal.
 
 ## Live routing demonstration
@@ -50,7 +54,7 @@ Each demonstration calls `controller.setPriorityRoute(2, [], speed)` for direct 
 
 Z-Wave JS priority routes select the first transmission attempt. The controller may fall back after a failed attempt. The lane view displays the actual over-the-air hops and speeds captured by the Zniffer.
 
-Capture is filtered to the main network's Home ID and nodes 001, 002, and 003. Direct mode displays lanes 001 and 002. Via 003 displays lanes in order 001, 003, 002. Switching modes preserves capture history. Starting an action clears the displayed capture history. Capture continues afterward to include delayed acknowledgments. Up to 512 frames are retained. Filtered, invalid, unsupported, and evicted frames are counted in setup. Driver command results never generate lane-view frames.
+Capture is filtered to the main network's Home ID and nodes 001, 002, and 003. Both Direct and Via 003 display lanes in order 001, 003, 002. The repeater remains visible because the controller can fall back to a routed transmission. Switching modes preserves capture history. Starting an action clears the displayed capture history. Capture continues afterward to include delayed acknowledgments. Up to 512 frames are retained. Filtered, invalid, unsupported, and evicted frames are counted in setup. Driver command results never generate lane-view frames.
 
 ## Run
 
@@ -108,7 +112,13 @@ Keep presentation copy limited to the topic, controls, and action feedback. Put 
 
 All live Zniffer views must filter captured frames by the main controller's Home ID unless explicitly requested otherwise. Read the Home ID from the connected main Driver. Apply the filter through `createCaptureHistory` before retaining frames or establishing the trace's time origin. Matching node IDs alone do not identify the network.
 
+Normal explorer frames display as broadcasts from the observed transmitting node. Each dashed arrow points right and ends 80% of the way to the next lane with a spreading-wave marker. The last lane uses the same spacing into empty space. These markers do not imply reception by a particular node. One-line chips show recorded repeaters as `Explore [ 3 ]` and final repeaters from the result payload as `Result [ 3 ]`. An empty list appears as `Explore [ ]`. Multiple repeaters are comma-separated without leading zeros. Search results use directed arrows for the observed return hop. Frame logs use the same labels and identify explorer delivery as **Broadcast**. Home ID and node filtering still apply. Inclusion explorers and beams remain unsupported.
+
+All live transmissions default to `maxSendAttempts: 1` unless explicitly requested otherwise. The main Driver sets `attempts.sendData: 1`, which supplies the default `maxSendAttempts` for commands, including Binary Switch Set and PING. It also sets `attempts.sendDataJammed: 1` to disable the separate jammed-controller resend loop. Controller-level radio retries and route fallback remain enabled. A command may explicitly override `maxSendAttempts` for a demonstration that needs host retries.
+
 Each Zniffer view has a **Clear** button. It removes captured frames without changing device state or stopping capture. Trace times display whole milliseconds. Raw timestamps retain their precision. Live captures start at 0 ms on the first accepted frame. Demonstration capture begins after priority-route setup.
+
+Text frame labels use Barlow Condensed in lanes and logs. Binary payload bytes retain IBM Plex Mono. Lane chips measure their rendered text and add only padding and space for the speed swatch. Font loading updates their widths.
 
 Opening connection setup pauses frame forwarding to all views. The Zniffer keeps running. Closing setup resumes forwarding new frames. Frames received during setup are not replayed.
 

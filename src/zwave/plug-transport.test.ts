@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SupervisionStatus, ZWaveDataRate } from "@zwave-js/core";
+import { SupervisionStatus, ZWaveDataRate, ZWaveError, ZWaveErrorCodes } from "@zwave-js/core";
 import { createPlugTransport } from "./plug-transport";
 import { PriorityRouteDemo } from "./priority-route";
 
@@ -40,7 +40,7 @@ test("an acknowledged unsupervised set updates the toggle without a state query"
   assert.deepEqual(states, [true]);
   assert.equal(await transport.send("off"), "Off acknowledged");
   assert.deepEqual(states, [true, false]);
-  await assert.rejects(transport.send("ping"), /did not acknowledge/);
+  await assert.rejects(transport.send("ping"), { message: "Node 002 did not ACK" });
   assert.deepEqual(states, [true, false]);
 });
 
@@ -69,10 +69,10 @@ test("a missing ACK leaves the toggle unchanged and still clears the route", asy
   }, {
     async ping() { return true; },
     commandClasses: { "Binary Switch": {
-      async set() { events.push("set"); throw new Error("No ACK"); },
+      async set() { events.push("set"); throw new ZWaveError("The node did not acknowledge the command", ZWaveErrorCodes.Controller_CallbackNOK); },
     } },
   }, () => assert.fail("A failed command must not update the toggle"));
-  await assert.rejects(new PriorityRouteDemo().run(transport, "on", false, "100k"), /No ACK/);
+  await assert.rejects(new PriorityRouteDemo().run(transport, "on", false, "100k"), { message: "Node 002 did not ACK" });
   assert.deepEqual(events, ["route", "set", "clear"]);
 });
 
@@ -84,5 +84,27 @@ test("failed supervision surfaces a command failure without a follow-up query", 
   const controller = { async setPriorityRoute() { return true; }, async removePriorityRoute() { return true; } };
   const rejected = createPlugTransport(controller, { async ping() { return true; }, commandClasses: { "Binary Switch": api } },
     () => assert.fail("Failed supervision must not update the toggle"));
-  await assert.rejects(rejected.send("on"), /Fail/);
+  await assert.rejects(rejected.send("on"), { message: "Node 002 did not confirm the command" });
+});
+
+test("On and Off use concise errors and retain the original cause", async () => {
+  for (const cause of [
+    new ZWaveError("The node did not acknowledge the command", ZWaveErrorCodes.Controller_CallbackNOK),
+    new Error("Raw transport failure"),
+  ]) {
+    const transport = createPlugTransport({
+      async setPriorityRoute() { return true; }, async removePriorityRoute() { return true; },
+    }, {
+      async ping() { return true; },
+      commandClasses: { "Binary Switch": { async set() { throw cause; } } },
+    }, () => assert.fail("Failed commands must not change the toggle"));
+    for (const action of ["on", "off"] as const) {
+      await assert.rejects(transport.send(action), error => {
+        assert.ok(error instanceof Error);
+        assert.equal(error.message, cause instanceof ZWaveError ? "Node 002 did not ACK" : "Node 002 command failed");
+        assert.equal(error.cause, cause);
+        return true;
+      });
+    }
+  }
 });

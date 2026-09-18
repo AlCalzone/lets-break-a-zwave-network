@@ -1,8 +1,8 @@
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import type { DemoFrame, FrameSpeed } from "../../demo/types";
-import { fitPayload, frameLabel, isAck, isError, speedClass } from "./frameData";
+import { explorerRepeaters, fitPayload, frameLabel, isAck, isError, speedClass } from "./frameData";
 
-type ChipFrame = Pick<DemoFrame, "kind" | "payload" | "retry">;
+type ChipFrame = Pick<DemoFrame, "kind" | "payload" | "retry" | "explorer">;
 
 function PayloadChip({ frame }: { frame: ChipFrame }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -38,8 +38,11 @@ function PayloadChip({ frame }: { frame: ChipFrame }) {
 
 export function FrameChip({ frame }: { frame: ChipFrame }) {
   if (frame.kind.endsWith("DATA")) return <PayloadChip frame={frame} />;
+  const repeaters = explorerRepeaters(frame);
+  const explorer = frame.kind === "EXPLORE" || frame.kind === "SEARCH RESULT";
   return (
-    <span className={`zn-type${isAck(frame) ? " is-ack" : ""}${isError(frame) ? " is-err" : ""}`}>
+    <span className={`zn-type${isAck(frame) ? " is-ack" : ""}${isError(frame) ? " is-err" : ""}${explorer ? " zn-explorer-chip" : ""}`}
+      title={repeaters?.description}>
       {frameLabel(frame)}{frame.retry && <span className="zn-retry"> · retry</span>}
     </span>
   );
@@ -67,9 +70,15 @@ export function RSSIIndicator({ rssi }: { rssi?: number }) {
 }
 
 export function NodePath({ frame, path = frame.route }: {
-  frame: Pick<DemoFrame, "source" | "target" | "route">;
+  frame: Pick<DemoFrame, "source" | "target" | "route" | "broadcast">;
   path?: readonly number[];
 }) {
+  if (frame.broadcast) {
+    return <span className="zn-chain" role="img" aria-label={`Node ${frame.source} broadcasts; searching for node ${frame.target}`}>
+      <span className="zn-nd tx" aria-hidden="true">{frame.source}</span>
+      <span className="zn-broadcast-label" aria-hidden="true">Broadcast</span>
+    </span>;
+  }
   const nodes = [...new Set([...path, frame.source, frame.target])];
   const sourceIndex = nodes.indexOf(frame.source);
   const targetIndex = nodes.indexOf(frame.target);

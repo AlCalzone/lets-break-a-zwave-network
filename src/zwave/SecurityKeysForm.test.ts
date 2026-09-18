@@ -30,3 +30,11 @@ test("connected hardware prevents editing and clearing keys", () => {
   assert.match(markup, /<button type="button" disabled="">Clear saved keys<\/button>/);
   assert.equal((markup.match(/<input[^>]* disabled=""/g) ?? []).length, 6);
 });
+
+test("fallback keys expose an explicit reset action", () => {
+  const markup = renderToStaticMarkup(createElement(SecurityKeysForm, {
+    configured: ["S0_Legacy"], disabled: false, hasDefaults: true, onApply() {},
+  }));
+  assert.match(markup, /<button type="button">Reset to defaults<\/button>/);
+  assert.doesNotMatch(markup, /Clear saved keys/);
+});

@@ -2,8 +2,10 @@ import {
   AckLongRangeMPDU,
   AckZWaveMPDU,
   MPDU,
+  NormalExplorerZWaveMPDU,
   Protocols,
   RoutedZWaveMPDU,
+  SearchResultExplorerZWaveMPDU,
   SinglecastLongRangeMPDU,
   SinglecastZWaveMPDU,
   ZnifferProtocolDataRate,
@@ -69,7 +71,7 @@ export function mapCaptureFrame(event: CaptureEvent, context: CaptureMappingCont
   if (!Number.isInteger(frame.homeId)) return dropped("malformed-frame");
   if (frame.homeId !== context.homeId) return dropped("other-network");
   if (frame.protocol === Protocols.ZWave
-    ? frame.type !== ZWaveFrameType.Singlecast && frame.type !== ZWaveFrameType.AckDirect
+    ? ![ZWaveFrameType.Singlecast, ZWaveFrameType.AckDirect, ZWaveFrameType.ExplorerNormal, ZWaveFrameType.ExplorerSearchResult].includes(frame.type)
     : frame.type !== LongRangeFrameType.Singlecast && frame.type !== LongRangeFrameType.Ack) {
     return dropped("unsupported-frame");
   }
@@ -101,7 +103,8 @@ export function mapCaptureFrame(event: CaptureEvent, context: CaptureMappingCont
   }
   if (!(mpdu instanceof SinglecastZWaveMPDU || mpdu instanceof RoutedZWaveMPDU
     || mpdu instanceof AckZWaveMPDU || mpdu instanceof SinglecastLongRangeMPDU
-    || mpdu instanceof AckLongRangeMPDU)) {
+    || mpdu instanceof AckLongRangeMPDU || mpdu instanceof NormalExplorerZWaveMPDU
+    || mpdu instanceof SearchResultExplorerZWaveMPDU)) {
     return dropped("unsupported-frame");
   }
   if (mpdu.homeId !== frame.homeId || mpdu.sourceNodeId !== frame.sourceNodeId
@@ -111,7 +114,9 @@ export function mapCaptureFrame(event: CaptureEvent, context: CaptureMappingCont
   }
   const expectedType = mpdu instanceof AckZWaveMPDU ? ZWaveFrameType.AckDirect
     : mpdu instanceof AckLongRangeMPDU ? LongRangeFrameType.Ack
-      : mpdu instanceof SinglecastLongRangeMPDU ? LongRangeFrameType.Singlecast : ZWaveFrameType.Singlecast;
+      : mpdu instanceof SinglecastLongRangeMPDU ? LongRangeFrameType.Singlecast
+        : mpdu instanceof NormalExplorerZWaveMPDU ? ZWaveFrameType.ExplorerNormal
+          : mpdu instanceof SearchResultExplorerZWaveMPDU ? ZWaveFrameType.ExplorerSearchResult : ZWaveFrameType.Singlecast;
   if (frame.type !== expectedType) return dropped("malformed-frame");
   const nodeLimit = speed === "LR" ? 4094 : 232;
   const validNode = (node: number) => Number.isInteger(node) && node > 0 && node <= nodeLimit;
@@ -121,14 +126,49 @@ export function mapCaptureFrame(event: CaptureEvent, context: CaptureMappingCont
   let source = mpdu.sourceNodeId;
   let target = mpdu.destinationNodeId;
   let route = [source, target];
+  let broadcast = false;
+  let explorer: DemoFrame["explorer"];
   let kind: FrameKind = mpdu instanceof AckZWaveMPDU || mpdu instanceof AckLongRangeMPDU ? "ACK" : "DATA";
-  if (mpdu instanceof RoutedZWaveMPDU) {
+  if (mpdu instanceof NormalExplorerZWaveMPDU || mpdu instanceof SearchResultExplorerZWaveMPDU) {
+    if (rawData.length < 17 || mpdu.repeaters.length > 4 || !mpdu.repeaters.every(validNode)
+      || !Number.isInteger(mpdu.ttl) || mpdu.ttl < 0 || mpdu.ttl > 4
+      || !("ttl" in frame) || frame.ttl !== mpdu.ttl || frame.direction !== mpdu.direction
+      || frame.repeaters.length !== mpdu.repeaters.length
+      || !frame.repeaters.every((node, index) => node === mpdu.repeaters[index])) {
+      return dropped("malformed-frame");
+    }
+    // Z-Wave JS uses 4 - TTL as the route index for both explorer directions
+    const hop = 4 - mpdu.ttl;
+    if (hop > mpdu.repeaters.length) return dropped("malformed-frame");
+    explorer = { repeaters: [...mpdu.repeaters] };
+    if (mpdu instanceof NormalExplorerZWaveMPDU) {
+      route = [source, ...mpdu.repeaters, target];
+      source = route[hop];
+      broadcast = true;
+      kind = "EXPLORE";
+    } else {
+      if (rawData.length < 24 || !validNode(mpdu.searchingNodeId)
+        || mpdu.resultTTL < 0 || mpdu.resultTTL > 4 || mpdu.resultRepeaters.length > 4
+        || !mpdu.resultRepeaters.every(validNode)
+        || !("searchingNodeId" in frame) || frame.searchingNodeId !== mpdu.searchingNodeId
+        || frame.frameHandle !== mpdu.frameHandle || frame.resultTTL !== mpdu.resultTTL
+        || frame.resultRepeaters.length !== mpdu.resultRepeaters.length
+        || !frame.resultRepeaters.every((node, index) => node === mpdu.resultRepeaters[index])) {
+        return dropped("malformed-frame");
+      }
+      route = [target, ...mpdu.repeaters, source];
+      explorer.resultRepeaters = [...mpdu.resultRepeaters];
+      [source, target] = [route[hop + 1], route[hop]];
+      kind = "SEARCH RESULT";
+    }
+    if (new Set(route).size !== route.length) return dropped("malformed-frame");
+  } else if (mpdu instanceof RoutedZWaveMPDU) {
     if (mpdu.repeaters.length < 1 || mpdu.repeaters.length > 4 || !mpdu.repeaters.every(validNode)
       || !Number.isInteger(mpdu.hop) || mpdu.hop < 0 || mpdu.hop > mpdu.repeaters.length
       || (mpdu.routedAck && mpdu.routedError)) {
       return dropped("malformed-frame");
     }
-    if (!("direction" in frame) || frame.direction !== mpdu.direction || frame.hop !== mpdu.hop
+    if (!("hop" in frame) || frame.direction !== mpdu.direction || frame.hop !== mpdu.hop
       || frame.routedAck !== mpdu.routedAck || frame.routedError !== mpdu.routedError
       || !Array.isArray(frame.repeaters) || frame.repeaters.length !== mpdu.repeaters.length
       || !frame.repeaters.every((node, index) => node === mpdu.repeaters[index])) {
@@ -157,6 +197,8 @@ export function mapCaptureFrame(event: CaptureEvent, context: CaptureMappingCont
       timestampMs: context.receivedAt - context.startedAt,
       source,
       target,
+      ...(broadcast ? { broadcast: true } : {}),
+      ...(explorer ? { explorer } : {}),
       route,
       kind,
       // A decoded CommandClass may expose decrypted bytes. MPDU keeps the received payload

@@ -26,3 +26,14 @@ test("the imported styles do not fetch remote fonts", async () => {
     assert.doesNotMatch(css, /@import\s+url\(['"]?https?:/);
   }
 });
+
+test("channel hopping shows only the on-air frame and receiver timelines", () => {
+  const slide = slides.find(slide => slide.number === 12)!;
+  assert.equal(slide.title, "One radio, hopping through channels 🦘");
+  assert.ok(slide.html.includes(`<h2 class="slide-title">${slide.title}</h2>`));
+  assert.doesNotMatch(slide.html, />Time, schematic<|>RECEIVE PROFILES<|>LR on air<|class="miss"|y="356"/);
+  assert.match(slide.html, /aria-label="Two aligned schematic timelines\./);
+  assert.match(slide.html, /viewBox="0 0 1620 322"/);
+  assert.match(slide.html, />9\.6 kbit\/s<\/text>/);
+  assert.match(slide.html, />Receiver<\/text>/);
+});

@@ -7,6 +7,7 @@ import type { DemoSpeed, PlugAction } from "../zwave/priority-route";
 import "./real-network.css";
 
 export interface RealRoutingSlideProps {
+  title?: string;
   frames: readonly DemoFrame[];
   nodes: readonly DemoNode[];
   ready: boolean;
@@ -23,10 +24,9 @@ export interface RealRoutingSlideProps {
 export function RealRoutingSlide(props: RealRoutingSlideProps) {
   const [route, setRoute] = useState<"direct" | "routed">("direct");
   const [speed, setSpeed] = useState<DemoSpeed>("100k");
-  const laneNodes = route === "routed" ? props.nodes : props.nodes.filter(node => node.nodeId !== 3);
   const disabled = !props.ready || props.busy || props.cleanupRequired;
   return (
-    <SlideFrame title="Direct or through a repeater?">
+    <SlideFrame title={props.title ?? "Let's see it in action"}>
       <section className="zc figure-frame real-plug" aria-label="Plug, node 2" aria-busy={props.busy}>
         <Corners />
         <div className="zc-head">
@@ -50,7 +50,7 @@ export function RealRoutingSlide(props: RealRoutingSlideProps) {
         {props.cleanupRequired && <Button disabled={props.busy || !props.canClearRoute} onClick={props.onClearRoute}>Clear priority route</Button>}
       </section>
       <div className="real-lanes">
-        <LaneView frames={props.frames} nodes={laneNodes} onClear={props.onClearCapture} fixedNodes />
+        <LaneView frames={props.frames} nodes={props.nodes} onClear={props.onClearCapture} fixedNodes />
       </div>
     </SlideFrame>
   );

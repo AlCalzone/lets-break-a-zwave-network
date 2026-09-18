@@ -3,22 +3,35 @@ import { parseSecurityKeys, securityKeyFields, type SecurityKeyDraft } from "./s
 
 export const securityStorageKey = "zwave-presentation.security-keys.v1";
 
-export function loadSecurityKeys(storage: Pick<Storage, "getItem">): HardwareSecurityOptions | undefined {
-  const text = storage.getItem(securityStorageKey);
-  if (text === null) return undefined;
+function parseStoredKeys(text: string, source: string): HardwareSecurityOptions {
   let value: unknown;
   try { value = JSON.parse(text); }
-  catch { throw new Error("Saved network keys contain invalid JSON. Replace them in connection setup."); }
+  catch { throw new Error(`${source} contain invalid JSON.`); }
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Saved network keys have an invalid format. Replace them in connection setup.");
+    throw new Error(`${source} have an invalid format.`);
   }
   const draft: SecurityKeyDraft = {};
   for (const [name, key] of Object.entries(value)) {
     const field = securityKeyFields.find(field => field.id === name);
-    if (!field || typeof key !== "string") throw new Error("Saved network keys have an invalid field. Replace them in connection setup.");
+    if (!field || typeof key !== "string") throw new Error(`${source} have an invalid field.`);
     draft[field.id] = key;
   }
   return parseSecurityKeys(draft);
+}
+
+export function withSecurityKeyDefaults(options: HardwareSecurityOptions, fallback?: string): HardwareSecurityOptions {
+  if (!fallback) return options;
+  const defaults = parseStoredKeys(fallback, "Fallback network keys");
+  return {
+    securityKeys: { ...defaults.securityKeys, ...options.securityKeys },
+    securityKeysLongRange: { ...defaults.securityKeysLongRange, ...options.securityKeysLongRange },
+  };
+}
+
+export function loadSecurityKeys(storage: Pick<Storage, "getItem">, fallback?: string): HardwareSecurityOptions | undefined {
+  const text = storage.getItem(securityStorageKey);
+  if (text === null && !fallback) return undefined;
+  return withSecurityKeyDefaults(text === null ? {} : parseStoredKeys(text, "Saved network keys"), fallback);
 }
 
 export function saveSecurityKeys(storage: Pick<Storage, "setItem">, options: HardwareSecurityOptions) {

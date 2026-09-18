@@ -9,7 +9,8 @@ import { createBrowserFileSystem } from "./filesystem";
 import { database } from "./database";
 import { createBrowserSerialFactory } from "./serial";
 import type { HardwareSecurityOptions } from "./hardware";
-import { requiredRegion, requiredZnifferChannels, requiredZnifferRegion } from "./radio-config";
+import { requiredZnifferChannels, requiredZnifferRegion } from "./radio-config";
+import { mainDriverOptions } from "./driver-options";
 
 const fs = createBrowserFileSystem(cache, files);
 const host = { fs, db: database, log, serial: {} };
@@ -17,9 +18,7 @@ const host = { fs, db: database, log, serial: {} };
 export function createMain(port: SerialPort, cacheDir: string, security: HardwareSecurityOptions = {}) {
   return new Driver(createBrowserSerialFactory(port), {
     host,
-    ...security,
-    storage: { cacheDir },
-    rf: { region: requiredRegion, preferLRRegion: false },
+    ...mainDriverOptions(cacheDir, security),
   });
 }
 

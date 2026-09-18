@@ -19,7 +19,7 @@ export interface DemoNode {
 
 export type NodeAction = "on" | "off" | "basic-set" | "ping" | "report" | "wake";
 export type FrameSpeed = "9.6k" | "40k" | "100k" | "LR";
-export type FrameKind = "DATA" | "ACK" | "ROUTED DATA" | "ROUTED ACK" | "ROUTED ERROR";
+export type FrameKind = "DATA" | "ACK" | "ROUTED DATA" | "ROUTED ACK" | "ROUTED ERROR" | "EXPLORE" | "SEARCH RESULT";
 
 export interface DemoFrame {
   id: string;
@@ -29,6 +29,12 @@ export interface DemoFrame {
   timestampMs: number;
   source: number;
   target: number;
+  /** Broadcast frames retain the intended destination in target. */
+  broadcast?: boolean;
+  explorer?: {
+    repeaters: number[];
+    resultRepeaters?: number[];
+  };
   route: number[];
   kind: FrameKind;
   payload: Uint8Array;

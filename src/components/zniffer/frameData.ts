@@ -7,6 +7,7 @@ export function prepareFrames(frames: readonly DemoFrame[]) {
   const ordered = [...frames].sort((a, b) => a.sequence - b.sequence);
   const paths = new Map<string, number[]>();
   for (const frame of ordered) {
+    if (frame.broadcast) continue;
     const key = exchangeKey(frame);
     const path = paths.get(key) ?? [];
     for (const node of [...frame.route, frame.source, frame.target]) {
@@ -17,7 +18,7 @@ export function prepareFrames(frames: readonly DemoFrame[]) {
   return ordered.map((frame) => ({
     frame,
     elapsedMs: frame.timestampMs,
-    path: paths.get(exchangeKey(frame))!,
+    path: frame.broadcast || frame.kind === "SEARCH RESULT" ? frame.route : paths.get(exchangeKey(frame))!,
   }));
 }
 
@@ -28,10 +29,24 @@ export function speedClass(speed?: DemoFrame["speed"]) {
 export const isAck = (frame: Pick<DemoFrame, "kind">) => frame.kind.endsWith("ACK");
 export const isError = (frame: Pick<DemoFrame, "kind">) => frame.kind.endsWith("ERROR");
 
-export function frameLabel(frame: Pick<DemoFrame, "kind" | "payload">) {
+export function frameLabel(frame: Pick<DemoFrame, "kind" | "payload" | "explorer">) {
+  if (frame.kind === "EXPLORE" || frame.kind === "SEARCH RESULT") {
+    const list = explorerRepeaters(frame)?.text ?? "?";
+    return `${frame.kind === "EXPLORE" ? "Explore" : "Result"} ${list ? `[ ${list} ]` : "[ ]"}`;
+  }
   return frame.kind.endsWith("DATA")
     ? Array.from(frame.payload, (byte) => byte.toString(16).padStart(2, "0").toUpperCase()).join(" ") || "—"
     : frame.kind;
+}
+
+export function explorerRepeaters(frame: Pick<DemoFrame, "kind" | "explorer">) {
+  const repeaters = frame.kind === "SEARCH RESULT" ? frame.explorer?.resultRepeaters : frame.explorer?.repeaters;
+  if (!repeaters) return undefined;
+  const nodes = repeaters.map(String);
+  return {
+    text: nodes.join(", "),
+    description: `${frame.kind === "SEARCH RESULT" ? "Final" : "Recorded"} repeaters: ${nodes.length ? nodes.join(", ") : "none"}`,
+  };
 }
 
 export const MIN_PAYLOAD_FONT_SIZE = 18;

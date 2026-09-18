@@ -109,7 +109,7 @@ class LiveNetwork {
       const detail = await this.routeDemo.run(this.transport(operation.driver), action, routed, speed, this.clearCapture);
       this.update({ outcome: { kind: "success", label: detail } });
     } catch (error) {
-      this.update({ outcome: { kind: "error", label: "Demonstration failed", detail: errorMessage(error) } });
+      this.update({ outcome: { kind: "error", label: errorMessage(error) } });
     } finally {
       this.update({ busy: false, cleanupRequired: this.routeDemo.cleanupRequired });
       operation?.release();

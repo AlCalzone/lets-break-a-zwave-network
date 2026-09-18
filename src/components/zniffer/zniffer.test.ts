@@ -278,7 +278,7 @@ test("lane views use unique markers and actual frame endpoints", () => {
     createElement(LaneView, { frames, nodes: createDemoNodes(), onClear }),
   ));
   const ids = [...markup.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
-  const definitionIds = ids.filter((id) => /-(title|normal|error)$/.test(id));
+  const definitionIds = ids.filter((id) => /-(title|normal|error|broadcast)$/.test(id));
   assert.equal(new Set(definitionIds).size, definitionIds.length);
   assert.match(markup, /node 2 to node 3, 20 01 FF/);
   assert.match(markup, /node 3 to node 2, ROUTED ACK/);
@@ -292,9 +292,107 @@ test("latest error and retries remain visible", () => {
   const markup = renderToStaticMarkup(createElement(LaneView, { frames, nodes: createDemoNodes(), onClear }));
   assert.equal((markup.match(/data-frame-id=/g) ?? []).length, frames.length);
   assert.match(markup, /ROUTED ERROR/);
-  assert.match(markup, /zn-lane-error/);
+  assert.match(markup, /class="chip k zn-lane-error"/);
+  assert.match(markup, /class="cl zn-lane-error-label"/);
   assert.match(markup, /retry/);
   assert.match(renderToStaticMarkup(createElement(FrameChip, { frame: frames.at(-1)! })), /is-err/);
+});
+
+test("explore uses broadcast waves without a targeted arrow or invented receiver", () => {
+  const base = createBaselineFrames()[0];
+  const frame: DemoFrame = { ...base, kind: "EXPLORE", broadcast: true, source: 1, target: 2, route: [1, 2] };
+  const nodes = createDemoNodes().filter(node => node.networkId === frame.networkId && node.nodeId === 1);
+  const markup = renderToStaticMarkup(createElement(LaneView, { frames: [frame], nodes, onClear, fixedNodes: true }));
+  assert.equal((markup.match(/data-frame-id=/g) ?? []).length, 1);
+  assert.equal((markup.match(/class="life"/g) ?? []).length, 1);
+  assert.match(markup, /node 1 broadcasts, searching for node 2, Explore \[ \? \]/);
+  assert.equal((markup.match(/class="arw zn-broadcast"/g) ?? []).length, 1);
+  assert.match(markup, /class="arw zn-broadcast" d="M180 36H452"/);
+  assert.match(markup, /marker-end="url\(#[^"]+-broadcast\)"/);
+  assert.doesNotMatch(markup, /marker-end="url\(#[^"]+-normal\)"/);
+  assert.match(markup, />Explore \[ \? \]<\/text>/);
+  assert.doesNotMatch(markup, /zn-payload|002 ·/);
+});
+
+test("explore and search result labels remain complete in every Zniffer view", () => {
+  const base = createBaselineFrames()[0];
+  const frames: DemoFrame[] = [
+    { ...base, kind: "EXPLORE", broadcast: true, source: 1, target: 3, route: [1, 2, 3] },
+    { ...base, id: "result", sequence: 2, kind: "SEARCH RESULT", source: 3, target: 2, route: [1, 2, 3] },
+  ];
+  for (const variant of ["full", "compact", "hops"] as const) {
+    const markup = renderToStaticMarkup(createElement(FrameLog, { frames, variant, onClear }));
+    assert.match(markup, />Explore \[ \? \]<\/span>/);
+    assert.match(markup, />Result \[ \? \]<\/span>/);
+    assert.match(markup, /Node 1 broadcasts; searching for node 3/);
+    assert.match(markup, />Broadcast<\/span>/);
+    assert.match(markup, /Node 3 to node 2/);
+  }
+  const lane = renderToStaticMarkup(createElement(LaneView, { frames, nodes: createDemoNodes(), onClear }));
+  assert.match(lane, />Result \[ \? \]<\/text>/);
+  assert.match(lane, /class="arw" d="M852 92H538" marker-end="url\(#[^"]+-normal\)"/);
+  assert.doesNotMatch(lane, /SEARCH RES\.\.\./);
+});
+
+test("broadcast waves stay within their own network lanes", () => {
+  const base = createBaselineFrames()[0];
+  const frames: DemoFrame[] = [
+    { ...base, kind: "EXPLORE", broadcast: true, source: 1, target: 2, route: [1, 2] },
+    { ...base, id: "other", networkId: "other", kind: "EXPLORE", broadcast: true, source: 1, target: 2, route: [1, 2] },
+  ];
+  const markup = renderToStaticMarkup(createElement(LaneView, { frames, nodes: [], onClear }));
+  const waves = [...markup.matchAll(/class="arw zn-broadcast" d="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(waves, ["M180 36H452", "M860 92H1132"]);
+});
+
+test("explore arrows stop at 80 percent of the next lane interval", () => {
+  const base = createBaselineFrames()[0];
+  const nodes = createDemoNodes().slice(0, 3);
+  const frames: DemoFrame[] = nodes.map((node, index) => ({
+    ...base, id: `explore-${index}`, sequence: index + 1, kind: "EXPLORE", broadcast: true,
+    source: node.nodeId, target: 2, route: nodes.map(node => node.nodeId), explorer: { repeaters: [] },
+  }));
+  const markup = renderToStaticMarkup(createElement(LaneView, { frames, nodes, fixedNodes: true, onClear }));
+  const waves = [...markup.matchAll(/class="arw zn-broadcast" d="M(\d+) (\d+)H(\d+)"/g)];
+  assert.equal(waves.length, 3);
+  for (const wave of waves) assert.equal(Number(wave[3]) - Number(wave[1]), 340 * 0.8);
+  assert.match(markup, /viewBox="0 0 1172 /);
+});
+
+test("explore carries recorded repeaters and results carry the final repeater list", () => {
+  const base = createBaselineFrames()[0];
+  const frames: DemoFrame[] = [
+    { ...base, kind: "EXPLORE", broadcast: true, explorer: { repeaters: [] } },
+    { ...base, id: "forward", sequence: 2, kind: "EXPLORE", broadcast: true, explorer: { repeaters: [3] } },
+    { ...base, id: "result", sequence: 3, kind: "SEARCH RESULT", explorer: { repeaters: [3], resultRepeaters: [4, 5, 6, 7] } },
+  ];
+  const lane = renderToStaticMarkup(createElement(LaneView, { frames, nodes: createDemoNodes(), onClear }));
+  assert.match(lane, /Recorded repeaters: none/);
+  assert.match(lane, /Recorded repeaters: 3/);
+  assert.match(lane, /Final repeaters: 4, 5, 6, 7/);
+  assert.match(lane, />Result \[ 4, 5, 6, 7 \]<\/text>/);
+  assert.match(lane, />Explore \[ \]<\/text>/);
+  assert.match(lane, />Explore \[ 3 \]<\/text>/);
+  assert.equal((lane.match(/<text class="cl"/g) ?? []).length, frames.length);
+  assert.doesNotMatch(lane, /zn-explorer-repeaters/);
+  for (const variant of ["full", "compact", "hops"] as const) {
+    const log = renderToStaticMarkup(createElement(FrameLog, { frames, variant, onClear }));
+    assert.match(log, /title="Recorded repeaters: none">Explore \[ \]<\/span>/);
+    assert.match(log, /title="Recorded repeaters: 3">Explore \[ 3 \]<\/span>/);
+    assert.match(log, /title="Final repeaters: 4, 5, 6, 7">Result \[ 4, 5, 6, 7 \]<\/span>/);
+  }
+});
+
+test("initial broadcasts do not reorder the discovered search-result path", () => {
+  const base = createBaselineFrames()[0];
+  const frames: DemoFrame[] = [
+    { ...base, kind: "EXPLORE", broadcast: true, source: 1, target: 2, route: [1, 2] },
+    { ...base, id: "repeat", sequence: 2, kind: "EXPLORE", broadcast: true, source: 3, target: 2, route: [1, 3, 2] },
+    { ...base, id: "result", sequence: 3, kind: "SEARCH RESULT", source: 2, target: 3, route: [1, 3, 2] },
+  ];
+  assert.deepEqual(prepareFrames(frames).map(row => row.path), [[1, 2], [1, 3, 2], [1, 3, 2]]);
+  const markup = renderToStaticMarkup(createElement(FrameLog, { frames, onClear }));
+  assert.match(markup, /Node 2 to node 3; path 1, 3, 2/);
 });
 
 test("all views format binary payloads as padded uppercase hex", () => {
@@ -364,7 +462,8 @@ test("long payloads keep lane geometry bounded and retain full accessible hex", 
   const lane = renderToStaticMarkup(createElement(LaneView, { frames: [frame], nodes: createDemoNodes(), onClear }));
   assert.match(lane, /viewBox="0 0 1020 48"/);
   assert.match(lane, /viewBox="0 0 1020 240"/);
-  assert.match(lane, /class="chip f-100"[^>]*width="250"/);
+  const chipWidth = Number(lane.match(/class="chip f-100"[^>]*width="([^"]+)"/)?.[1]);
+  assert.ok(chipWidth > 0 && chipWidth <= 250);
   assert.match(lane, /class="cl zn-payload on" style="font-size:18px"[^>]*>00 01 02 03 04 \.\.\.<\/text>/);
   assert.ok(lane.includes(`aria-label="#1: node 1 to node 2, ${hex}, 100k, 0 ms"`));
   assert.ok(lane.includes(`<title>#1: node 1 to node 2, ${hex}, 100k, 0 ms</title>`));
@@ -390,6 +489,13 @@ test("ACK labels stay complete and long retry payloads retain retry status", () 
   assert.ok(chip.includes(`title="${frameLabel(frame)} · retry"`));
 });
 
+test("text frame labels use the condensed heading font and payloads remain monospace", () => {
+  const css = readFileSync(new URL("./zniffer.css", import.meta.url), "utf8");
+  assert.match(css, /\.zn-live \.zn-type \{[^}]*font: 600 21px\/1\.2 var\(--font-heading\)/);
+  assert.match(css, /\.zn-live \.zn-payload-chip \{[^}]*font-family: "IBM Plex Mono", monospace/);
+  assert.match(css, /\.zn-live \.zl \.cl \{[^}]*font-family: var\(--font-heading\)/);
+  assert.match(css, /\.zn-live \.zl \.cl\.zn-payload \{[^}]*font-family: "IBM Plex Mono", monospace/);
+});
 test("lane history grows vertically to include every retained frame", () => {
   const frames = Array.from({ length: MAX_DEMO_FRAMES }, (_, index) => ({
     ...createBaselineFrames()[0], id: `frame-${index}`, sequence: index + 1,
@@ -402,6 +508,20 @@ test("lane history grows vertically to include every retained frame", () => {
   assert.match(markup, /data-own-arrow-keys/);
 });
 
+test("lane chip widths follow their contents without a fixed minimum", () => {
+  const base = createBaselineFrames()[0];
+  const frames: DemoFrame[] = [
+    { ...base, id: "ack", kind: "ACK", payload: new Uint8Array() },
+    { ...base, id: "explore", sequence: 2, kind: "EXPLORE", broadcast: true, explorer: { repeaters: [3] } },
+    { ...base, id: "data", sequence: 3, kind: "DATA", payload: Uint8Array.from([0xff]) },
+  ];
+  const markup = renderToStaticMarkup(createElement(LaneView, { frames, nodes: createDemoNodes(), onClear }));
+  const widths = [...markup.matchAll(/class="chip [^"]+"[^>]*width="([^"]+)"/g)].map(match => Number(match[1]));
+  assert.equal(widths.length, 3);
+  assert.ok(widths[0] < 100);
+  assert.ok(widths[1] > widths[0] && widths[1] < 250);
+  assert.ok(widths[2] < widths[0]);
+});
 test("lane node headers sit outside the scrolling history with matching lane coordinates", () => {
   const frames = Array.from({ length: MAX_DEMO_FRAMES }, (_, index) => ({
     ...createBaselineFrames()[0], id: `frame-${index}`, sequence: index + 1,

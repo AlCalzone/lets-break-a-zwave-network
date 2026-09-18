@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { Deck, type Slide } from "./presentation/Deck";
-import { insertRoutingDemo } from "./presentation/slide-order";
+import { insertRoutingDemos } from "./presentation/slide-order";
 import { RealRoutingSlide } from "./slides/RealRoutingSlide";
 import { HardwareSetup, type ConnectionRow } from "./zwave/HardwareSetup";
 import { hardware, type HardwareKind } from "./zwave/hardware";
@@ -10,7 +10,9 @@ import { SecurityKeysForm } from "./zwave/SecurityKeysForm";
 import { ConnectionsContext } from "./presentation/ConnectionsContext";
 import { getSetupStatus } from "./zwave/setup-status";
 import { requiredRegion, requiredZnifferChannels } from "./zwave/radio-config";
-import { loadSecurityKeys, saveSecurityKeys } from "./zwave/security-store";
+import { loadSecurityKeys, saveSecurityKeys, withSecurityKeyDefaults } from "./zwave/security-store";
+
+const fallbackSecurityKeys = import.meta.env.VITE_ZWAVE_SECURITY_KEYS;
 
 export function PresentationApp({ slides }: { slides: Slide[] }) {
   const [setupOpen, setSetupOpen] = useState(false);
@@ -29,7 +31,7 @@ export function PresentationApp({ slides }: { slides: Slide[] }) {
     connection.kind !== "rcp" && (connection.hasInstance || !["disconnected", "error"].includes(connection.status)));
   useEffect(() => {
     try {
-      const saved = loadSecurityKeys(window.localStorage);
+      const saved = loadSecurityKeys(window.localStorage, fallbackSecurityKeys);
       if (saved) hardware.configureSecurity(saved);
       setSecurityLoaded(true);
     } catch (error) {
@@ -92,16 +94,19 @@ export function PresentationApp({ slides }: { slides: Slide[] }) {
       canReinterview: !!hardware.getMainDriver() && !live.cleanupRequired,
     };
   });
-  const presentation = insertRoutingDemo(slides, {
-    id: "live-routing",
-    title: "Direct or through a repeater?",
+  const routingDemo = (id: string, title: string): Slide => ({
+    id,
+    title,
     notes: "Real network. Node 002 is a Binary Switch plug. Direct sets an empty priority route; routed uses node 003. A real Zniffer supplies the lane view. Each action clears the priority route afterward.",
-    content: <RealRoutingSlide frames={live.capture.frames} nodes={live.nodes} ready={live.ready}
+    content: <RealRoutingSlide title={title} frames={live.capture.frames} nodes={live.nodes} ready={live.ready}
       busy={live.busy} on={live.on} outcome={live.outcome}
       cleanupRequired={live.cleanupRequired} onAction={liveNetwork.action} onClearRoute={liveNetwork.clearRoute}
       onClearCapture={liveNetwork.clearCapture}
       canClearRoute={!!hardware.getMainDriver()} />,
   });
+  const presentation = insertRoutingDemos(slides,
+    routingDemo("live-routing", "Let's see it in action"),
+    routingDemo("live-routing-explorers", "Let's see it in action once more"));
   const present = () => setSetupOpen(false);
   return <>
     <ConnectionsContext.Provider value={{ ready: setup.ready, open: openSetup }}>
@@ -113,8 +118,9 @@ export function PresentationApp({ slides }: { slides: Slide[] }) {
       {setupError && <p className="setup-error" role="alert">{setupError}</p>}
       {interviewNotice && <p role="status">{interviewNotice}</p>}
       <SecurityKeysForm disabled={securityLocked} configured={live.hardware.configuredSecurityKeys}
+        hasDefaults={!!fallbackSecurityKeys}
         onApply={options => {
-          hardware.configureSecurity(options);
+          hardware.configureSecurity(withSecurityKeyDefaults(options, fallbackSecurityKeys));
           saveSecurityKeys(window.localStorage, options);
           setSecurityLoaded(true);
           setSetupError("");

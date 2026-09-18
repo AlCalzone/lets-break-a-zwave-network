@@ -24,8 +24,8 @@
 .zn-live .zn-frame-cell { text-align: left; justify-self: stretch; }
 .zn-live .zn-nd { box-sizing: border-box; width: 38px; height: 38px; font-size: 23px; }
 .zn-live .zn-hop { flex: 0 0 24px; text-align: center; font-size: 24px; }
-.zn-live .zn-type { max-width: 100%; box-sizing: border-box; font: 21px/1.2 "IBM Plex Mono", monospace; padding: 6px 8px; white-space: normal; overflow-wrap: anywhere; }
-.zn-live .zn-payload-chip { --zn-payload-font-size: 21px; display: inline-block; width: fit-content; overflow: hidden; text-align: left; }
+.zn-live .zn-type { max-width: 100%; box-sizing: border-box; font: 600 21px/1.2 var(--font-heading); padding: 6px 8px; white-space: normal; overflow-wrap: anywhere; }
+.zn-live .zn-payload-chip { --zn-payload-font-size: 21px; display: inline-block; width: fit-content; overflow: hidden; text-align: left; font-family: "IBM Plex Mono", monospace; font-weight: 400; }
 .zn-live .zn-payload { letter-spacing: 0; white-space: nowrap; overflow-wrap: normal; }
 .zn-live .zn-payload-chip .zn-retry { display: block; font-size: 18px; }
 .zn-live .zn-retry { white-space: nowrap; }
@@ -43,8 +43,13 @@
 .zn-live-lanes .zn-fig { padding-top: 0; }
 .zn-live-lanes .zn-lane-header, .zn-live-lanes .zn-fig { scrollbar-gutter: stable; }
 .zn-live .zn-fig, .zn-live .zn-live-rows { overscroll-behavior: contain; }
-.zn-live .zl .cl { font-family: "IBM Plex Mono", monospace; font-size: 23px; }
+.zn-live .zl .cl { font-family: var(--font-heading); font-size: 23px; }
+.zn-live .zl .cl.zn-payload { font-family: "IBM Plex Mono", monospace; }
 .zn-live .zl .zn-lane-error { stroke: #a83a29; stroke-dasharray: 6 4; }
+.zn-live .zl .zn-lane-error-label { fill: #a83a29; }
+.zn-live .zl .zn-broadcast { stroke-dasharray: 5 5; }
+.zn-broadcast-label { font: 18px "IBM Plex Mono", monospace; color: var(--color-accent-900); }
+.zn-live .zn-explorer-chip { white-space: nowrap; overflow-x: auto; }
 @container (max-width: 900px) {
   .zn-live .zn-bar { padding: 12px 14px; font-size: 21px; }
   .zn-live .zn-bar .meta { font-size: 15px; }

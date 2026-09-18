@@ -1,4 +1,4 @@
-import { SupervisionStatus, ZWaveDataRate, type SupervisionResult } from "@zwave-js/core";
+import { isZWaveError, SupervisionStatus, ZWaveDataRate, ZWaveErrorCodes, type SupervisionResult } from "@zwave-js/core";
 import { PLUG_NODE_ID } from "./network";
 import type { DemoSpeed, RouteTransport } from "./priority-route";
 
@@ -27,14 +27,20 @@ export function createPlugTransport(controller: Controller, node: Plug, onExecut
       : controller.setPriorityRoute(PLUG_NODE_ID, repeaters, rates[speed ?? "100k"]),
     send: async action => {
       if (action === "ping") {
-        if (!await node.ping()) throw new Error("Node 002 did not acknowledge the ping.");
+        if (!await node.ping()) throw new Error("Node 002 did not ACK");
         return "Ping acknowledged";
       }
       const api = node.commandClasses["Binary Switch"];
       const target = action === "on";
-      const result = await api.set(target);
+      let result: SupervisionResult | undefined;
+      try {
+        result = await api.set(target);
+      } catch (cause) {
+        const missingAck = isZWaveError(cause) && cause.code === ZWaveErrorCodes.Controller_CallbackNOK;
+        throw new Error(missingAck ? "Node 002 did not ACK" : "Node 002 command failed", { cause });
+      }
       if (result && result.status !== SupervisionStatus.Success) {
-        throw new Error(`Switch command was not confirmed: ${SupervisionStatus[result.status]}.`);
+        throw new Error("Node 002 did not confirm the command");
       }
       onExecuted(target);
       return `${target ? "On" : "Off"} ${result ? "confirmed" : "acknowledged"}`;

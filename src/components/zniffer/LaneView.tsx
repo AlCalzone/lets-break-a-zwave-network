@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { DemoFrame, DemoNode, FrameSpeed } from "../../demo/types";
-import { fitPayload, formatTime, frameLabel, isAck, isError, prepareFrames, speedClass } from "./frameData";
+import { explorerRepeaters, formatTime, frameLabel, isAck, isError, prepareFrames, speedClass } from "./frameData";
+import { LaneFrameChip } from "./LaneFrameChip";
 import { useFrameScroll } from "./useFrameScroll";
 
 const legendSpeeds: readonly FrameSpeed[] = ["9.6k", "40k", "100k", "LR"];
@@ -21,7 +22,7 @@ export function LaneView({ frames, nodes, onClear, fixedNodes = false, emptyMess
   const id = useId().replace(/:/g, "");
   const rows = prepareFrames(fixedNodes ? frames.filter(frame =>
     nodes.some(node => node.networkId === frame.networkId && node.nodeId === frame.source)
-    && nodes.some(node => node.networkId === frame.networkId && node.nodeId === frame.target),
+    && (frame.broadcast || nodes.some(node => node.networkId === frame.networkId && node.nodeId === frame.target)),
   ) : frames);
   const latest = rows.at(-1)?.frame;
   const bodyRef = useFrameScroll(latest?.id);
@@ -50,10 +51,13 @@ export function LaneView({ frames, nodes, onClear, fixedNodes = false, emptyMess
     observer.observe(element);
     return () => observer.disconnect();
   }, [bodyRef, hasLanes]);
-  const width = Math.max(1020, 340 + (lanes.length - 1) * 340);
-  const height = laneCanvasHeight(rows.length, width, viewport);
-  const x = (index: number) => 180 + index * (width - 340) / Math.max(1, lanes.length - 1);
+  const baseWidth = Math.max(1020, 340 + (lanes.length - 1) * 340);
+  const laneSpacing = lanes.length > 1 ? (baseWidth - 340) / (lanes.length - 1) : 340;
+  const x = (index: number) => 180 + index * laneSpacing;
   const laneX = (frame: DemoFrame, nodeId: number) => x(lanes.findIndex((lane) => lane.networkId === frame.networkId && lane.nodeId === nodeId));
+  const width = Math.max(baseWidth, ...rows.filter(({ frame }) => frame.broadcast)
+    .map(({ frame }) => laneX(frame, frame.source) + laneSpacing * 0.8 + 40));
+  const height = laneCanvasHeight(rows.length, width, viewport);
   return (
     <section className="zn zn-live zn-live-lanes figure-frame" aria-label="Zniffer">
       <div className="zn-bar">
@@ -96,6 +100,9 @@ export function LaneView({ frames, nodes, onClear, fixedNodes = false, emptyMess
                   <path d="M0 0L10 5L0 10Z" fill={kind === "error" ? "#a83a29" : "var(--color-accent-900)"} />
                 </marker>
               ))}
+              <marker id={`${id}-broadcast`} viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+                <path d="M2 4Q5 6 2 8M5 1Q11 6 5 11" fill="none" stroke="var(--color-accent-900)" strokeWidth="1.5" strokeLinecap="round" />
+              </marker>
             </defs>
             {lanes.map((lane, index) => (
               <path key={`${lane.networkId}:${lane.nodeId}`} className="life" d={`M${x(index)} 0V${height - 4}`} />
@@ -103,7 +110,9 @@ export function LaneView({ frames, nodes, onClear, fixedNodes = false, emptyMess
             {rows.map(({ frame, elapsedMs }, index) => {
               const y = 36 + index * 56;
               const from = laneX(frame, frame.source);
-              const to = laneX(frame, frame.target);
+              const to = frame.broadcast
+                ? from + laneSpacing * 0.8
+                : laneX(frame, frame.target);
               const direction = to > from ? 1 : -1;
               const center = (from + to) / 2;
               const ack = isAck(frame);
@@ -111,20 +120,18 @@ export function LaneView({ frames, nodes, onClear, fixedNodes = false, emptyMess
               const hex = frameLabel(frame);
               const suffix = frame.retry ? " · retry" : "";
               const fullLabel = hex + suffix;
-              const chipWidth = Math.min(250, Math.max(140, fullLabel.length * 15 + 30));
-              const fitted = !ack && !error ? fitPayload(hex, chipWidth - 30, 23, suffix) : undefined;
-              const description = `#${frame.sequence}: node ${frame.source} to node ${frame.target}, ${fullLabel}, ${frame.speed}, ${formatTime(elapsedMs)} ms`;
+              const repeaters = explorerRepeaters(frame);
+              const destination = frame.broadcast ? `broadcasts, searching for node ${frame.target}` : `to node ${frame.target}`;
+              const description = `#${frame.sequence}: node ${frame.source} ${destination}, ${fullLabel}${repeaters ? `, ${repeaters.description}` : ""}, ${frame.speed}, ${formatTime(elapsedMs)} ms`;
               return (
                 <g key={frame.id} data-frame-id={frame.id} role="img" aria-label={description}>
                   <title>{description}</title>
                   {index % 2 === 0 && <rect className="band" x="0" y={y - 28} width={width} height="56" />}
                   <text className="tm" x="100" y={y + 8} textAnchor="end">{formatTime(elapsedMs)}</text>
-                  <path className={`arw${ack ? " ack" : ""}${error ? " err" : ""}`} d={`M${from + direction * 8} ${y}H${to - direction * 18}`} markerEnd={`url(#${id}-${error ? "error" : "normal"})`} />
-                  <rect className={`chip ${ack || error ? "k" : `f-${speedClass(frame.speed)}`}${error ? "zn-lane-error" : ""}`} x={center - chipWidth / 2} y={y - 18} width={chipWidth} height="36" />
-                  {(ack || error) && <rect className={`sw-${speedClass(frame.speed)}`} x={center - chipWidth / 2 + 3} y={y - 15} width="12" height="30" />}
-                  <text className={`cl${fitted ? " zn-payload" : ""}${!ack && !error && (frame.speed === "100k" || frame.speed === "LR") ? " on" : ""}`} style={fitted ? { fontSize: fitted.fontSize } : undefined} aria-hidden="true" x={center + (ack || error ? 5 : 0)} y={y + 8}>
-                    {fitted?.text ?? fullLabel}
-                  </text>
+                  {frame.broadcast ? (
+                    <path className="arw zn-broadcast" d={`M${from} ${y}H${to}`} markerEnd={`url(#${id}-broadcast)`} />
+                  ) : <path className={`arw${ack ? " ack" : ""}${error ? " err" : ""}`} d={`M${from + direction * 8} ${y}H${to - direction * 18}`} markerEnd={`url(#${id}-${error ? "error" : "normal"})`} />}
+                  <LaneFrameChip frame={frame} center={center} y={y} />
                 </g>
               );
             })}

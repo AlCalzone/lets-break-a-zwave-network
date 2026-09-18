@@ -4,10 +4,13 @@ import { BasicCCSet } from "@zwave-js/cc";
 import {
   AckLongRangeMPDU,
   AckZWaveMPDU,
+  ExplorerFrameCommand,
   MPDUHeaderType,
+  NormalExplorerZWaveMPDU,
   Protocols,
   RFRegion,
   RoutedZWaveMPDU,
+  SearchResultExplorerZWaveMPDU,
   RssiError,
   SinglecastLongRangeMPDU,
   SinglecastZWaveMPDU,
@@ -15,6 +18,8 @@ import {
   ZnifferRegion,
   znifferProtocolDataRateToProtocolDataRate,
   type RoutedZWaveMPDUOptions,
+  type ExplorerZWaveMPDUOptions,
+  type SearchResultExplorerZWaveMPDUOptions,
 } from "@zwave-js/core";
 import { Bytes } from "@zwave-js/shared";
 import type { Frame, ZWaveFrame } from "zwave-js/Zniffer";
@@ -45,7 +50,8 @@ const base = {
 };
 
 function eventFor(
-  mpdu: SinglecastZWaveMPDU | AckZWaveMPDU | RoutedZWaveMPDU | SinglecastLongRangeMPDU | AckLongRangeMPDU,
+  mpdu: SinglecastZWaveMPDU | AckZWaveMPDU | RoutedZWaveMPDU | SinglecastLongRangeMPDU | AckLongRangeMPDU
+    | NormalExplorerZWaveMPDU | SearchResultExplorerZWaveMPDU,
   rate = ZnifferProtocolDataRate.ZWave_100k,
 ): Extract<CaptureEvent, { type: "frame" }> {
   const info = {
@@ -71,6 +77,16 @@ function eventFor(
     frame = mpdu instanceof AckLongRangeMPDU
       ? { ...common, type: LongRangeFrameType.Ack, incomingRSSI: mpdu.incomingRSSI }
       : { ...common, type: LongRangeFrameType.Singlecast, ackRequested: mpdu.ackRequested };
+  } else if (mpdu instanceof NormalExplorerZWaveMPDU || mpdu instanceof SearchResultExplorerZWaveMPDU) {
+    const common = {
+      ...info, protocol: Protocols.ZWave as const, speedModified: false, ackRequested: mpdu.ackRequested,
+      direction: mpdu.direction, repeaters: [...mpdu.repeaters], ttl: mpdu.ttl,
+    };
+    frame = mpdu instanceof NormalExplorerZWaveMPDU
+      ? { ...common, type: ZWaveFrameType.ExplorerNormal, payload: Bytes.from(mpdu.payload) }
+      : { ...common, type: ZWaveFrameType.ExplorerSearchResult,
+        searchingNodeId: mpdu.searchingNodeId, frameHandle: mpdu.frameHandle,
+        resultTTL: mpdu.resultTTL, resultRepeaters: [...mpdu.resultRepeaters] };
   } else if (mpdu instanceof AckZWaveMPDU) {
     frame = { ...info, protocol: Protocols.ZWave, speedModified: false, type: ZWaveFrameType.AckDirect };
   } else {
@@ -126,6 +142,27 @@ function routed(options: Partial<RoutedZWaveMPDUOptions> = {}) {
     repeaters: [3],
     payload: Bytes.from([0x20, 0x01, 0xff]),
     ...options,
+  }));
+}
+
+const explorerBase: ExplorerZWaveMPDUOptions = {
+  ...base, headerType: MPDUHeaderType.Explorer, ackRequested: false, routed: false,
+  version: 1, command: ExplorerFrameCommand.Normal, stop: false, sourceRouted: false,
+  direction: "outbound", randomTXInterval: 0, ttl: 4, repeaters: [],
+};
+
+function explore(options: Partial<ExplorerZWaveMPDUOptions> = {}) {
+  return eventFor(new NormalExplorerZWaveMPDU({
+    ...explorerBase, payload: Bytes.from([0x25, 0x01, 0xff]), ...options,
+  }));
+}
+
+function searchResult(options: Partial<SearchResultExplorerZWaveMPDUOptions> = {}) {
+  return eventFor(new SearchResultExplorerZWaveMPDU({
+    ...explorerBase, sourceNodeId: 2, destinationNodeId: 1,
+    command: ExplorerFrameCommand.SearchResult, sourceRouted: true, direction: "inbound",
+    ttl: 3, repeaters: [3], searchingNodeId: 1, frameHandle: 7, resultTTL: 3,
+    resultRepeaters: [3], ...options,
   }));
 }
 
@@ -267,7 +304,7 @@ test("main Home ID and complete route membership filter other traffic", () => {
   });
 });
 
-test("beams and explorer frames are counted as unsupported", () => {
+test("beams and inclusion explorers remain unsupported", () => {
   const beam: CaptureEvent = {
     type: "frame",
     frame: { protocol: Protocols.ZWave, type: ZWaveFrameType.BeamStop, channel: 0 },
@@ -276,13 +313,82 @@ test("beams and explorer frames are counted as unsupported", () => {
   const explorer = direct();
   explorer.frame = {
     ...base,
-    protocol: Protocols.ZWave, type: ZWaveFrameType.ExplorerNormal, channel: 0,
+    protocol: Protocols.ZWave, type: ZWaveFrameType.ExplorerInclusionRequest, channel: 0,
     region: ZnifferRegion.Europe, protocolDataRate: ZnifferProtocolDataRate.ZWave_100k,
     rssiRaw: 42, speedModified: false, ackRequested: true,
-    direction: "outbound", repeaters: [], ttl: 3, payload: Bytes.from([0x20, 0x01, 0xff]),
+    direction: "outbound", repeaters: [], ttl: 3, networkHomeId: HOME_ID, payload: Bytes.from([0x20, 0x01, 0xff]),
   };
   for (const event of [beam, explorer]) {
     assert.deepEqual(mapCaptureFrame(event, context), { status: "dropped", reason: "unsupported-frame" });
+  }
+});
+
+test("explore captures preserve the real sender and broadcast delivery", () => {
+  for (const [event, source, route] of [
+    [explore(), 1, [1, 2]],
+    [explore({ ttl: 3, repeaters: [3] }), 3, [1, 3, 2]],
+  ] as const) {
+    const frame = mapped(event);
+    assert.equal(frame.kind, "EXPLORE");
+    assert.equal(frame.source, source);
+    assert.equal(frame.target, 2);
+    assert.equal(frame.broadcast, true);
+    assert.deepEqual(frame.route, route);
+    assert.deepEqual(frame.explorer?.repeaters, route.slice(1, -1));
+    assert.deepEqual([...frame.payload], [0x25, 0x01, 0xff]);
+  }
+});
+
+test("search results return over the observed hop without broadcast styling", () => {
+  for (const [ttl, source, target] of [[3, 2, 3], [4, 3, 1]]) {
+    const frame = mapped(searchResult({ ttl }));
+    assert.equal(frame.kind, "SEARCH RESULT");
+    assert.deepEqual([frame.source, frame.target], [source, target]);
+    assert.deepEqual(frame.route, [1, 3, 2]);
+    assert.equal(frame.broadcast, undefined);
+    assert.deepEqual(frame.explorer, { repeaters: [3], resultRepeaters: [3] });
+    assert.equal(frame.payload.length, 0);
+  }
+  const directResult = mapped(searchResult({ repeaters: [], resultRepeaters: [], ttl: 4, resultTTL: 4 }));
+  assert.deepEqual([directResult.source, directResult.target], [2, 1]);
+});
+
+test("search results preserve their final repeaters separately from their delivery route", () => {
+  const event = searchResult({ resultRepeaters: [4, 5] });
+  const frame = mapped(event);
+  assert.deepEqual(frame.route, [1, 3, 2]);
+  assert.deepEqual(frame.explorer, { repeaters: [3], resultRepeaters: [4, 5] });
+  assert.ok("resultRepeaters" in event.frame);
+  event.frame.repeaters[0] = 7;
+  assert.deepEqual(frame.explorer, { repeaters: [3], resultRepeaters: [4, 5] });
+});
+
+test("explorers retain Home ID and node filtering", () => {
+  for (const event of [explore({ homeId: 123 }), searchResult({ homeId: 123 })]) {
+    assert.deepEqual(mapCaptureFrame(event, context), { status: "dropped", reason: "other-network" });
+  }
+  for (const event of [explore({ repeaters: [4], ttl: 3 }), searchResult({ repeaters: [4] })]) {
+    assert.deepEqual(mapCaptureFrame(event, context), { status: "dropped", reason: "unrelated-nodes" });
+  }
+});
+
+test("malformed explorer routes and mismatched metadata are discarded", () => {
+  const mismatch = explore();
+  assert.ok("ttl" in mismatch.frame);
+  mismatch.frame.ttl = 3;
+  const resultMismatch = searchResult();
+  assert.ok("resultTTL" in resultMismatch.frame);
+  resultMismatch.frame.resultTTL = 2;
+  const truncated = searchResult();
+  truncated.rawData = truncated.rawData.slice(0, 20);
+  truncated.rawData[7] = 22;
+  for (const event of [
+    explore({ ttl: 5 }), explore({ ttl: 2, repeaters: [3] }),
+    explore({ ttl: 3, repeaters: [1] }), explore({ repeaters: [0], ttl: 3 }),
+    searchResult({ ttl: 0 }), searchResult({ resultTTL: 5 }),
+    searchResult({ resultRepeaters: [0] }), mismatch, resultMismatch, truncated,
+  ]) {
+    assert.deepEqual(mapCaptureFrame(event, context), { status: "dropped", reason: "malformed-frame" });
   }
 });
 
