@@ -1,0 +1,41 @@
+.hardware-setup {
+  width: min(1040px, 94vw); max-height: 90vh; overflow: auto; padding: 32px;
+  background: #f2f2f3; color: #192a3a; border: 1px solid #5980a6;
+  box-shadow: 0 24px 80px #0007; font: 17px/1.45 "Barlow", sans-serif;
+}
+.hardware-setup::backdrop { background: #101921ed; }
+.hardware-setup header { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.hardware-setup h1 { font: 42px/1.2 "Barlow Condensed", sans-serif; margin: 0 0 12px; }
+.hardware-setup h2 { font: 25px "Barlow Condensed", sans-serif; margin: 0; }
+.hardware-setup p { margin: 6px 0; }
+.hardware-setup button {
+  background: transparent; color: #192a3a; border: 1px solid #5980a6;
+  padding: 8px 16px; font: 18px "Barlow Condensed", sans-serif; cursor: pointer;
+}
+.hardware-setup button:hover:enabled { background: #deecf8; }
+.hardware-setup button:disabled { opacity: .45; cursor: default; }
+.hardware-setup .setup-close { flex: none; width: 36px; height: 36px; padding: 6px; border: 0; }
+.setup-close svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; }
+.hardware-setup :focus-visible { outline: 2px solid #416180; outline-offset: 3px; }
+.setup-device { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 0; border-bottom: 1px solid #b5c7d8; }
+.setup-device > div:first-child { min-width: 0; }
+.setup-device p { overflow-wrap: anywhere; }
+.setup-status { font-weight: 500; }
+.setup-buttons { display: flex; flex: none; gap: 8px; }
+.hardware-setup .setup-error { color: #a12e1f; }
+.setup-add { margin-top: 16px; }
+.hardware-setup .setup-note { margin-top: 24px; color: #526576; }
+.hardware-setup footer { display: flex; justify-content: flex-end; gap: 20px; margin-top: 24px; }
+.hardware-setup .setup-present { background: #192a3a; color: #fff; }
+.hardware-setup .setup-present:hover:enabled { background: #416180; }
+.hardware-setup details { margin-top: 20px; }
+.hardware-setup summary { cursor: pointer; font-size: 19px; }
+.setup-keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.setup-keys label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.setup-keys input { width: 100%; min-width: 0; padding: 8px; border: 1px solid #5980a6; background: #fff; font: 14px "IBM Plex Mono", monospace; }
+.setup-key-actions { display: flex; gap: 8px; margin-top: 12px; }
+@media (max-width: 650px) {
+  .hardware-setup { padding: 20px; }
+  .setup-device { align-items: start; flex-direction: column; gap: 10px; }
+  .setup-keys { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,90 @@
+.demo-segments {
+  width: fit-content;
+  align-self: flex-start;
+  flex: 0 0 auto;
+}
+
+.demo-button,
+.demo-segments button {
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.demo-button:focus-visible,
+.demo-segments button:focus-visible {
+  outline: 3px solid var(--color-accent-900);
+  outline-offset: 4px;
+}
+
+.demo-button:disabled,
+.demo-segments button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.demo-button:not(:disabled):hover {
+  background: var(--color-accent-100);
+}
+
+.demo-button.is-primary:not(:disabled):hover {
+  background: var(--color-accent-800);
+}
+
+.demo-segments button {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-neutral-700);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 23px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+}
+
+.demo-segments button + button {
+  border-left: 1px solid var(--color-accent-700);
+}
+
+.demo-segments button:not(.on):not(:disabled):hover {
+  background: var(--color-accent-100);
+  color: var(--color-accent-900);
+}
+
+.demo-segments button.on {
+  background: var(--color-accent-900);
+  color: var(--color-bg);
+}
+
+.demo-node {
+  min-width: 0;
+}
+
+.demo-node .zc-head {
+  flex-wrap: wrap;
+}
+
+.demo-node .zc-role {
+  font-size: 20px;
+}
+
+.demo-outcome {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.demo-outcome em {
+  font-size: 21px;
+}
+
+.demo-outcome[data-outcome="pending"] i {
+  background: var(--color-accent-200);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-button,
+  .demo-segments button {
+    transition: none;
+  }
+}

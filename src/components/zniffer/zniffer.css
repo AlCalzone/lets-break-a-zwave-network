@@ -1,0 +1,61 @@
+.zn-live { min-width: 0; min-height: 0; width: 100%; height: 100%; container-type: inline-size; }
+.zn-live .zn-bar { min-height: 47px; flex: none; align-items: center; justify-content: flex-start; gap: 12px; font-size: 23px; }
+.zn-actions { display: flex; align-items: center; gap: 18px; margin-left: auto; }
+.zn-clear { flex: none; border: 1px solid currentColor; border-radius: 3px; padding: 3px 9px; background: transparent; color: inherit; font: 17px/1.2 "IBM Plex Mono", monospace; text-transform: uppercase; cursor: pointer; }
+.zn-clear:hover { background: var(--color-accent-100); }
+.zn-clear:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.zn-live .zn-bar > span { min-width: 0; }
+.zn-live .zn-bar .meta { font-size: 17px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.zn-speed-legend { display: flex; align-items: center; gap: 18px; font: 17px "IBM Plex Mono", monospace; letter-spacing: 0; text-transform: none; }
+.zn-speed-legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.zn-speed-legend svg { flex: none; }
+.zn-live .zn-log { min-height: 0; overflow: hidden; }
+.zn-live .zn-live-rows { min-height: 0; flex: 1; overflow: auto; scrollbar-color: var(--color-accent-400) transparent; }
+.zn-live .zn-live-cols { gap: 12px; padding: 0 18px; }
+.zn-live-full .zn-live-cols { grid-template-columns: 46px 84px 200px minmax(0, 1fr) 78px 112px 36px; }
+.zn-live-compact .zn-live-cols { grid-template-columns: 38px 200px minmax(0, 1fr) 68px 100px 30px; }
+.zn-live-hops .zn-live-cols { grid-template-columns: 46px minmax(200px, 1fr) 180px 78px; }
+.zn-live .zn-hd { height: 43px; flex: none; font-size: 19px; }
+.zn-live .zn-r { min-height: 62px; padding-top: 8px; padding-bottom: 8px; box-sizing: border-box; }
+.zn-live .zn-r > * { min-width: 0; }
+.zn-live .zn-seq, .zn-live .zn-t, .zn-live .zn-ch, .zn-live .rssi { font-size: 21px; }
+.zn-live .zn-chain { gap: 8px; width: max-content; }
+.zn-live .zn-path-cell { overflow-x: auto; padding-bottom: 2px; }
+.zn-live .zn-frame-cell { text-align: left; justify-self: stretch; }
+.zn-live .zn-nd { box-sizing: border-box; width: 38px; height: 38px; font-size: 23px; }
+.zn-live .zn-hop { flex: 0 0 24px; text-align: center; font-size: 24px; }
+.zn-live .zn-type { max-width: 100%; box-sizing: border-box; font: 21px/1.2 "IBM Plex Mono", monospace; padding: 6px 8px; white-space: normal; overflow-wrap: anywhere; }
+.zn-live .zn-payload-chip { --zn-payload-font-size: 21px; display: inline-block; width: fit-content; overflow: hidden; text-align: left; }
+.zn-live .zn-payload { letter-spacing: 0; white-space: nowrap; overflow-wrap: normal; }
+.zn-live .zn-payload-chip .zn-retry { display: block; font-size: 18px; }
+.zn-live .zn-retry { white-space: nowrap; }
+.zn-live .sp { font-size: 21px; padding: 6px 8px; white-space: nowrap; }
+.zn-live .rssi { gap: 7px; white-space: nowrap; }
+.zn-live .rssi b { gap: 2px; flex: none; }
+.zn-live .rssi b i { width: 4px; }
+.zn-live .zn-empty { display: grid; flex: 1; place-content: center; padding: 28px; text-align: center; font: 25px/1.4 var(--font-heading); color: var(--color-neutral-700); }
+.zn-capture-waiting { padding: 12px; text-align: center; font: 24px var(--font-heading); color: var(--color-neutral-700); }
+.zn-live .zn-fig { padding: 14px 18px; overflow: auto; scrollbar-color: var(--color-accent-400) transparent; }
+.zn-live .zn-fig svg { height: auto; overflow: hidden; }
+.zn-live-lanes .zn-lane-header { flex: none; padding: 14px 18px 0; overflow: hidden; }
+.zn-live-lanes .zn-lane-header svg { display: block; width: 100%; height: auto; }
+.zn-live-lanes .zn-lane-header .lane { font-size: 26px; }
+.zn-live-lanes .zn-fig { padding-top: 0; }
+.zn-live-lanes .zn-lane-header, .zn-live-lanes .zn-fig { scrollbar-gutter: stable; }
+.zn-live .zn-fig, .zn-live .zn-live-rows { overscroll-behavior: contain; }
+.zn-live .zl .cl { font-family: "IBM Plex Mono", monospace; font-size: 23px; }
+.zn-live .zl .zn-lane-error { stroke: #a83a29; stroke-dasharray: 6 4; }
+@container (max-width: 900px) {
+  .zn-live .zn-bar { padding: 12px 14px; font-size: 21px; }
+  .zn-live .zn-bar .meta { font-size: 15px; }
+  .zn-live .zn-live-cols { gap: 9px; padding-left: 12px; padding-right: 12px; }
+  .zn-live-full .zn-live-cols { grid-template-columns: 34px 64px 170px minmax(0, 1fr) 60px 88px 26px; }
+  .zn-live-compact .zn-live-cols { grid-template-columns: 34px 170px minmax(0, 1fr) 60px 88px 26px; }
+  .zn-live .zn-hd { font-size: 16px; letter-spacing: .03em; }
+  .zn-live .zn-type, .zn-live .sp { font-size: 19px; padding: 5px 6px; }
+  .zn-live .zn-payload-chip { --zn-payload-font-size: 19px; }
+  .zn-live .zn-seq, .zn-live .zn-t, .zn-live .zn-ch, .zn-live .rssi { font-size: 18px; }
+  .zn-live .zn-chain { gap: 6px; }
+  .zn-live .zn-nd { width: 33px; height: 33px; font-size: 21px; }
+  .zn-live .zn-hop { flex: 0 0 21px; font-size: 21px; }
+}

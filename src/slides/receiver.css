@@ -1,0 +1,31 @@
+.receiver-panel { position: relative; height: 100%; }
+.receiver-configure {
+  border: 1px solid #5980a6; border-radius: 0;
+  background: transparent; color: #d2dedb; cursor: pointer;
+  font: 18px var(--font-heading); padding: 2px 10px;
+}
+.receiver-configure:hover { background: #192d2b; }
+.receiver-configure:focus-visible { outline: 2px solid #cbe4fa; outline-offset: 2px; }
+.receiver-panel .sdr-panel.demo-terminal { height: 100%; border-radius: 0; color-scheme: dark; }
+.receiver-panel .sdr-panel-chrome { flex-basis: 39px; font-size: 18px; }
+.receiver-panel .sdr-panel-status { font-size: 16px; }
+.receiver-panel .sdr-empty { font-size: 20px; padding: 20px; text-align: center; }
+.receiver-panel .sdr-empty strong { font-size: 26px; font-weight: 500; }
+.receiver-dialog {
+  width: min(1040px, 94vw); max-height: 85vh; overflow: auto; padding: 28px;
+  background: #0c171d; color: #d2dedb; border: 1px solid #5980a6;
+  border-radius: 2px; box-shadow: 0 24px 80px #0008;
+}
+.receiver-dialog::backdrop { background: #07111bcc; }
+.receiver-dialog header { display: flex; justify-content: space-between; align-items: start; gap: 24px; margin-bottom: 26px; }
+.receiver-dialog h2 { font-size: 32px; margin: 0 0 4px; }
+.receiver-dialog p { font-size: 15px; color: #93a9b6; margin: 0; }
+.receiver-dialog header button { color: #d2dedb; background: transparent; border: 1px solid #5980a6; padding: 7px 16px; cursor: pointer; }
+.receiver-dialog .sdr-controls { font-size: 13px; }
+.receiver-dialog .sdr-controls input, .receiver-dialog .sdr-controls select, .receiver-dialog .sdr-controls button { height: 38px; }
+.receiver-dialog .sdr-feedback, .receiver-dialog .sdr-connection-label { font-size: 12px; }
+.receiver-dialog .sdr-action-row { margin-top: 20px; }
+@media (max-width: 850px) {
+  .receiver-dialog .sdr-setup-row { flex-wrap: wrap; }
+  .receiver-dialog .sdr-setup-row label { min-width: 160px; }
+}

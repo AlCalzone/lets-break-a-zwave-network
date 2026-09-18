@@ -1,0 +1,92 @@
+.sdr-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 456px;
+  min-height: 408px;
+  overflow: hidden;
+  border: 1px solid #2b3b43;
+  border-radius: 8px;
+  background: #080d12;
+  color: #d2dedb;
+}
+.sdr-panel-chrome {
+  flex: 0 0 35px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 15px;
+  border-bottom: 1px solid #27373f;
+  font: 11px "IBM Plex Mono", monospace;
+  letter-spacing: .05em;
+}
+.sdr-panel-title { color: #e0ece4; font-weight: 600; }
+.sdr-panel-title span { color: #748d95; font-weight: 400; }
+.sdr-panel-actions { display: flex; align-items: center; gap: 16px; }
+.sdr-panel-status { color: #9caaa9; font-size: 10px; }
+.sdr-panel-status.is-live { color: #93e6a5; }
+.sdr-terminal-viewport { flex: 1; min-height: 0; padding: 8px; overflow: hidden; }
+.sdr-terminal-host { width: 100%; height: 100%; }
+.sdr-terminal-host .xterm { height: 100%; }
+.sdr-terminal-host.is-waterfall .xterm { height: auto; pointer-events: none; }
+.sdr-terminal-host.is-waterfall .xterm-viewport { overflow: hidden !important; }
+.sdr-empty {
+  position: absolute;
+  inset: 36px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+  color: #7f9299;
+  font: 13px "IBM Plex Mono", monospace;
+}
+.sdr-empty strong { color: #bfcdc9; font-size: 17px; }
+.sdr-panel-error {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  background: #2b2423;
+  color: #ffb297;
+  font: 14px/1.4 "IBM Plex Mono", monospace;
+}
+.sdr-controls { width: 100%; color: #bdcbc9; font: 11px "IBM Plex Mono", monospace; }
+.sdr-setup-row, .sdr-action-row { display: flex; gap: 8px; align-items: end; }
+.sdr-setup-row label { display: flex; flex: 1; flex-direction: column; gap: 5px; min-width: 0; }
+.sdr-setup-row .sdr-port-field { flex: 1.7; }
+.sdr-controls input, .sdr-controls select {
+  width: 100%;
+  box-sizing: border-box;
+  height: 31px;
+  border: 1px solid #34454b;
+  border-radius: 4px;
+  padding: 0 8px;
+  background: #101c22;
+  color: #e1e8e3;
+  font: inherit;
+}
+.sdr-controls button {
+  height: 31px;
+  flex-shrink: 0;
+  border: 1px solid #42544f;
+  border-radius: 4px;
+  background: #192d2b;
+  padding: 0 11px;
+  color: #c1d4c7;
+  font: inherit;
+  cursor: pointer;
+}
+.sdr-controls button:hover:enabled { background: #2c4540; }
+.sdr-controls button:disabled { opacity: .4; cursor: default; }
+.sdr-controls input:disabled, .sdr-controls select:disabled { opacity: .55; }
+.sdr-controls :focus-visible { outline: 2px solid #dcfa45; outline-offset: 3px; }
+.sdr-action-row { margin-top: 9px; align-items: center; flex-wrap: wrap; }
+.sdr-controls .sdr-start { color: #b5eb83; border-color: #729b55; }
+.sdr-controls .sdr-quit { color: #d9aca1; background: #2b2423; border-color: #62504c; }
+.sdr-connection-label { margin-left: auto; font-size: 10px; color: #7e989b; }
+.sdr-feedback { min-height: 26px; padding: 7px 0 0; font-size: 10px; line-height: 1.4; color: #8ba2a6; }
+.sdr-feedback.is-error { color: #ffb297; }
