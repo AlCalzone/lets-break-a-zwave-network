@@ -1,9 +1,17 @@
 import { useSyncExternalStore } from "react";
-import { CommandClasses } from "@zwave-js/core";
+import { CommandClasses, isZWaveError, ZWaveErrorCodes } from "@zwave-js/core";
+import { CentralSceneCCNotification } from "@zwave-js/cc";
 import type { Outcome } from "../demo/types";
 import { createCaptureHistory, type CaptureSnapshot } from "./capture";
 import { hardware, type Driver } from "./hardware";
-import { PLUG_NODE_ID, mainNetworkNodes } from "./network";
+import {
+  FAKE_REPEATER_NODE_ID,
+  PLUG_NODE_ID,
+  SECOND_FAKE_REPEATER_NODE_ID,
+  WALL_CONTROLLER_NODE_ID,
+  mainNetworkNodes,
+  mainNetworkNodesWithLongRange,
+} from "./network";
 import { PriorityRouteDemo, errorMessage, type DemoSpeed, type PlugAction, type RouteTransport } from "./priority-route";
 import { createPlugTransport } from "./plug-transport";
 import { getSetupStatus } from "./setup-status";
@@ -14,20 +22,38 @@ interface LiveNetworkState {
   on: boolean | undefined;
   outcome: Outcome;
   capture: CaptureSnapshot;
+  lrPresses: number;
+}
+
+export function isLrButtonPress(args: { commandClass: number; value: unknown }) {
+  return args.commandClass === CommandClasses["Central Scene"]
+    && typeof args.value === "number" && args.value !== 1 && args.value !== 2;
+}
+
+export function isNewLrButtonPress(
+  args: { commandClass: number; value: unknown; sequenceNumber: number },
+  previousSequenceNumber: number | undefined,
+) {
+  return args.sequenceNumber !== previousSequenceNumber && isLrButtonPress(args);
 }
 
 class LiveNetwork {
   private listeners = new Set<() => void>();
   private routeDemo = new PriorityRouteDemo();
   private homeId: number | undefined;
-  private history = createCaptureHistory({ homeId: 0, networkId: "main" });
+  private history = createCaptureHistory({
+    homeId: 0, networkId: "main",
+    nodeIds: [1, 2, 3, FAKE_REPEATER_NODE_ID, SECOND_FAKE_REPEATER_NODE_ID, WALL_CONTROLLER_NODE_ID],
+  });
   private driver: Driver | undefined;
   private unwatchNode: (() => void) | undefined;
+  private lrWatchGeneration = 0;
   private exchange = 0;
   private state: LiveNetworkState = {
     busy: false, cleanupRequired: false, on: undefined,
     outcome: { kind: "idle", label: "" },
     capture: this.history.snapshot(),
+    lrPresses: 0,
   };
 
   constructor() {
@@ -52,6 +78,7 @@ class LiveNetwork {
     hardware.getZniffer()?.clearCapturedFrames();
     this.update({ capture: this.homeId === undefined ? this.history.reset() : this.history.start(++this.exchange) });
   };
+  resetLrPresses = () => this.update({ lrPresses: 0 });
 
   private update(change: Partial<LiveNetworkState>) {
     this.state = { ...this.state, ...change };
@@ -63,12 +90,17 @@ class LiveNetwork {
     const homeId = driver?.controller.homeId;
     if (homeId !== undefined && homeId !== this.homeId) {
       this.homeId = homeId;
-      this.history = createCaptureHistory({ homeId: this.homeId, networkId: String(this.homeId) });
+      this.history = createCaptureHistory({
+        homeId: this.homeId,
+        networkId: String(this.homeId),
+        nodeIds: [1, 2, 3, FAKE_REPEATER_NODE_ID, SECOND_FAKE_REPEATER_NODE_ID, WALL_CONTROLLER_NODE_ID],
+      });
       this.update({ capture: this.history.start(++this.exchange) });
     }
     if (this.driver !== driver) {
       this.unwatchNode?.();
       this.unwatchNode = undefined;
+      const lrWatchGeneration = ++this.lrWatchGeneration;
       this.driver = driver;
       const node = driver?.controller.nodes.get(PLUG_NODE_ID);
       if (node) {
@@ -80,6 +112,39 @@ class LiveNetwork {
         this.unwatchNode = () => { node.off("value updated", update); node.off("value added", update); };
         update();
       } else this.update({ on: undefined });
+      const lrNode = driver?.controller.nodes.get(WALL_CONTROLLER_NODE_ID);
+      if (driver && lrNode) {
+        void this.watchLrPresses(driver, lrWatchGeneration);
+      }
+    }
+  }
+
+  private async watchLrPresses(driver: Driver, generation: number) {
+    let previousSequenceNumber: number | undefined;
+    while (this.driver === driver && this.lrWatchGeneration === generation) {
+      try {
+        const command = await driver.waitForCommand(
+          (cc): cc is CentralSceneCCNotification => cc.nodeId === WALL_CONTROLLER_NODE_ID
+            && cc instanceof CentralSceneCCNotification,
+          1_000,
+          undefined,
+          { consume: false },
+        );
+        if (isNewLrButtonPress({
+          commandClass: CommandClasses["Central Scene"],
+          value: command.keyAttribute,
+          sequenceNumber: command.sequenceNumber,
+        }, previousSequenceNumber)) {
+          this.update({ lrPresses: this.state.lrPresses + 1 });
+        }
+        previousSequenceNumber = command.sequenceNumber;
+      } catch (error) {
+        if (isZWaveError(error) && error.code === ZWaveErrorCodes.Controller_NodeTimeout) continue;
+        if (this.driver === driver && this.lrWatchGeneration === generation) {
+          console.error("LR button monitor stopped", error);
+        }
+        return;
+      }
     }
   }
 
@@ -166,5 +231,13 @@ export function useLiveNetwork() {
   const captureStatus = readiness.ready
     ? `Captured: ${stats.captured} · Filtered: ${filtered} · Invalid/unsupported: ${discarded} · Evicted: ${stats.evicted}`
     : readiness.reason;
-  return { ...state, ...readiness, busy: state.busy || hardwareState.mainBusy, hardware: hardwareState, captureStatus, nodes: mainNetworkNodes(readiness.networkId) };
+  return {
+    ...state,
+    ...readiness,
+    busy: state.busy || hardwareState.mainBusy,
+    hardware: hardwareState,
+    captureStatus,
+    nodes: mainNetworkNodes(readiness.networkId),
+    nodesWithLongRange: mainNetworkNodesWithLongRange(readiness.networkId),
+  };
 }

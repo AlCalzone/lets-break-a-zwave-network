@@ -4,7 +4,7 @@ import { explorerRepeaters, fitPayload, frameLabel, isAck, isError, speedClass }
 
 type ChipFrame = Pick<DemoFrame, "kind" | "payload" | "retry" | "explorer">;
 
-function PayloadChip({ frame }: { frame: ChipFrame }) {
+function PayloadChip({ frame, compact }: { frame: ChipFrame; compact: boolean }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [space, setSpace] = useState({ width: 120, fontSize: 21 });
   useLayoutEffect(() => {
@@ -25,7 +25,7 @@ function PayloadChip({ frame }: { frame: ChipFrame }) {
     observer.observe(cell);
     return () => observer.disconnect();
   }, []);
-  const hex = frameLabel(frame);
+  const hex = frameLabel(frame, compact);
   const fitted = fitPayload(hex, space.width, space.fontSize);
   const label = `${hex}${frame.retry ? " · retry" : ""}`;
   return (
@@ -36,14 +36,14 @@ function PayloadChip({ frame }: { frame: ChipFrame }) {
   );
 }
 
-export function FrameChip({ frame }: { frame: ChipFrame }) {
-  if (frame.kind.endsWith("DATA")) return <PayloadChip frame={frame} />;
+export function FrameChip({ frame, compact = false }: { frame: ChipFrame; compact?: boolean }) {
+  if (frame.kind.endsWith("DATA")) return <PayloadChip frame={frame} compact={compact} />;
   const repeaters = explorerRepeaters(frame);
   const explorer = frame.kind === "EXPLORE" || frame.kind === "SEARCH RESULT";
   return (
     <span className={`zn-type${isAck(frame) ? " is-ack" : ""}${isError(frame) ? " is-err" : ""}${explorer ? " zn-explorer-chip" : ""}`}
       title={repeaters?.description}>
-      {frameLabel(frame)}{frame.retry && <span className="zn-retry"> · retry</span>}
+      {frameLabel(frame, compact)}{frame.retry && <span className="zn-retry"> · retry</span>}
     </span>
   );
 }

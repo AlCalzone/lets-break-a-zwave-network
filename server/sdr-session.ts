@@ -187,7 +187,7 @@ export class SdrSession extends EventEmitter {
     await mkdir(directory, { recursive: true, mode: 0o700 });
     const config = resolve(directory, 'config.toml');
     await writeFile(config,
-      `[radio]\nfrequency_hz = ${Math.round(setup.frequencyMHz * 1e6)}\nsample_rate = ${Math.round(setup.spanMHz * 1e6)}.0\n\n[display]\nactive_preset = "waterfall"\n`,
+      `[radio]\nfrequency_hz = ${Math.round(setup.frequencyMHz * 1e6)}\nsample_rate = ${Math.round(setup.spanMHz * 1e6)}.0\n\n[tinysa]\npoints = 64\nrbw = "300"\n\n[display]\nactive_preset = "waterfall"\nwaterfall_max_rows = 512\n`,
       { mode: 0o600 });
     await new Promise<void>((done) => this.terminal.write('', done));
     this.assertActive();

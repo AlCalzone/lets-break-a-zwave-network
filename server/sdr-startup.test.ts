@@ -99,7 +99,10 @@ test('manual launch remembers setup and a new session starts RX after the stoppe
   assert.equal(manual.session.state.rx, 'stopped');
   assert.deepEqual(await new SetupStore(manual.directory).load(), setup);
   assert.equal((await stat(resolve(manual.directory, 'setup.json'))).mode & 0o777, 0o600);
-  assert.match(await readFile(resolve(manual.directory, 'config.toml'), 'utf8'), /sample_rate = 2000000.0/);
+  const config = await readFile(resolve(manual.directory, 'config.toml'), 'utf8');
+  assert.match(config, /sample_rate = 2000000.0/);
+  assert.match(config, /\[tinysa\]\npoints = 64\nrbw = "300"/);
+  assert.match(config, /waterfall_max_rows = 512/);
   await manual.session.shutdown();
 
   const automatic = receiver(t, { directory: manual.directory });

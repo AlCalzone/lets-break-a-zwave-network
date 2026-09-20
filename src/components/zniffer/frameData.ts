@@ -29,14 +29,19 @@ export function speedClass(speed?: DemoFrame["speed"]) {
 export const isAck = (frame: Pick<DemoFrame, "kind">) => frame.kind.endsWith("ACK");
 export const isError = (frame: Pick<DemoFrame, "kind">) => frame.kind.endsWith("ERROR");
 
-export function frameLabel(frame: Pick<DemoFrame, "kind" | "payload" | "explorer">) {
+export function frameLabel(
+  frame: Pick<DemoFrame, "kind" | "payload" | "explorer">,
+  abbreviateRoutedResponses = false,
+) {
   if (frame.kind === "EXPLORE" || frame.kind === "SEARCH RESULT") {
     const list = explorerRepeaters(frame)?.text ?? "?";
     return `${frame.kind === "EXPLORE" ? "Explore" : "Result"} ${list ? `[ ${list} ]` : "[ ]"}`;
   }
   return frame.kind.endsWith("DATA")
     ? Array.from(frame.payload, (byte) => byte.toString(16).padStart(2, "0").toUpperCase()).join(" ") || "—"
-    : frame.kind;
+    : abbreviateRoutedResponses
+      ? frame.kind === "ROUTED ACK" ? "R-ACK" : frame.kind === "ROUTED ERROR" ? "R-ERR" : frame.kind
+      : frame.kind;
 }
 
 export function explorerRepeaters(frame: Pick<DemoFrame, "kind" | "explorer">) {

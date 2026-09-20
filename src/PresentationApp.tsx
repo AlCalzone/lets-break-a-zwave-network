@@ -3,7 +3,7 @@ import { Deck, type Slide } from "./presentation/Deck";
 import { insertRoutingDemos } from "./presentation/slide-order";
 import { RealRoutingSlide } from "./slides/RealRoutingSlide";
 import { HardwareSetup, type ConnectionRow } from "./zwave/HardwareSetup";
-import { hardware, type HardwareKind } from "./zwave/hardware";
+import { hardware, jammerRcpIds, type HardwareKind } from "./zwave/hardware";
 import { liveNetwork, useLiveNetwork } from "./zwave/live-network";
 import { errorMessage } from "./zwave/priority-route";
 import { SecurityKeysForm } from "./zwave/SecurityKeysForm";
@@ -11,19 +11,31 @@ import { ConnectionsContext } from "./presentation/ConnectionsContext";
 import { getSetupStatus } from "./zwave/setup-status";
 import { requiredRegion, requiredZnifferChannels } from "./zwave/radio-config";
 import { loadSecurityKeys, saveSecurityKeys, withSecurityKeyDefaults } from "./zwave/security-store";
+import { BeamingSlide } from "./slides/BeamingSlide";
+import { RcpControlSlide } from "./slides/RcpControlSlide";
+import { NetworkJammingSlide } from "./slides/NetworkJammingSlide";
+import { networkJammer } from "./zwave/network-jammer";
+import { BeamJammingSlide } from "./slides/BeamJammingSlide";
+import { beamJammer } from "./zwave/beam-jammer";
+import { ReturnRouteRelaySlide } from "./slides/ReturnRouteRelaySlide";
+import { findSavedSerialPort, loadSerialSelections, saveSerialSelection } from "./zwave/serial-store";
 
 const fallbackSecurityKeys = import.meta.env.VITE_ZWAVE_SECURITY_KEYS;
 
 export function PresentationApp({ slides }: { slides: Slide[] }) {
   const [setupOpen, setSetupOpen] = useState(false);
-  const [rcps, setRcps] = useState<string[]>([]);
-  const [nextRcp, setNextRcp] = useState(1);
+  const [rcps, setRcps] = useState<string[]>([...jammerRcpIds]);
+  const [nextRcp, setNextRcp] = useState(4);
   const [setupError, setSetupError] = useState("");
   const [interviewNotice, setInterviewNotice] = useState("");
   const [securityLoaded, setSecurityLoaded] = useState(false);
   const live = useLiveNetwork();
   useLayoutEffect(() => {
     hardware.setCaptureForwarding(!setupOpen);
+    if (setupOpen) {
+      void networkJammer.stop();
+      void beamJammer.stop();
+    }
     return () => hardware.setCaptureForwarding(false);
   }, [setupOpen]);
   const setup = getSetupStatus(live.hardware);
@@ -37,6 +49,45 @@ export function PresentationApp({ slides }: { slides: Slide[] }) {
     } catch (error) {
       setSetupError(`Could not restore network keys: ${errorMessage(error)}`);
     }
+  }, []);
+  useEffect(() => {
+    const serial = typeof navigator === "undefined" ? undefined : navigator.serial;
+    if (!serial) return;
+    let cancelled = false;
+    const restore = async () => {
+      try {
+        const selections = loadSerialSelections(window.localStorage);
+        const ports = await serial.getPorts();
+        const failures: string[] = [];
+        for (const selection of selections) {
+          if (cancelled) return;
+          const port = findSavedSerialPort(selection, ports);
+          if (!port) {
+            failures.push(`${selection.kind} ${selection.id} is no longer available`);
+            continue;
+          }
+          try {
+            await hardware.restoreConnection(selection.kind, selection.id, port);
+          } catch (error) {
+            failures.push(`${selection.kind} ${selection.id}: ${errorMessage(error)}`);
+          }
+        }
+        if (!cancelled && failures.length) setSetupError(`Could not restore saved serial devices: ${failures.join(". ")}`);
+      } catch (error) {
+        if (!cancelled) setSetupError(`Could not restore saved serial devices: ${errorMessage(error)}`);
+      }
+    };
+    void restore();
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    const serial = typeof navigator === "undefined" ? undefined : navigator.serial;
+    if (!serial) return;
+    return hardware.subscribePortSelections((kind, id, port) => {
+      void serial.getPorts()
+        .then(ports => saveSerialSelection(window.localStorage, kind, id, port, ports))
+        .catch(error => setSetupError(`Could not save serial selection: ${errorMessage(error)}`));
+    });
   }, []);
   useEffect(() => {
     if (!live.busy && !live.cleanupRequired) return;
@@ -89,7 +140,8 @@ export function PresentationApp({ slides }: { slides: Slide[] }) {
       busy,
       connect: () => attempt(hardware.requestConnection(entry.kind, entry.id)),
       disconnect: () => attempt(hardware.disconnect(entry.kind, entry.id)),
-      remove: entry.kind === "rcp" ? () => attempt(removeRcp(entry.id)) : undefined,
+      remove: entry.kind === "rcp" && !jammerRcpIds.includes(entry.id as typeof jammerRcpIds[number])
+        ? () => attempt(removeRcp(entry.id)) : undefined,
       reinterview: entry.kind === "main" ? () => attempt(reinterviewAll()) : undefined,
       canReinterview: !!hardware.getMainDriver() && !live.cleanupRequired,
     };
@@ -106,7 +158,54 @@ export function PresentationApp({ slides }: { slides: Slide[] }) {
   });
   const presentation = insertRoutingDemos(slides,
     routingDemo("live-routing", "Let's see it in action"),
-    routingDemo("live-routing-explorers", "Let's see it in action once more"));
+    routingDemo("live-routing-explorers", "Let's see it in action once more"),
+    {
+      id: "live-beaming",
+      title: "So anyway, I started blasting",
+      notes: "The RCP sends raw beam frames toward nonexistent Classic node 004. Start beaming runs until stopped. The preset buttons show short, long, and fragmented beam timing in the live tinySA waterfall.",
+      content: <BeamingSlide />,
+    },
+    {
+      id: "live-rcp-control",
+      title: "Do i know you?",
+      notes: "RCP-1 sends raw direct frames on the main network. It impersonates node 001 for plug commands and node 003 for Multilevel Switch reports. The Zniffer shows the command and any direct ACK.",
+      content: <RcpControlSlide frames={live.capture.frames} nodes={live.nodes} ready={setup.ready && !live.busy}
+        onClearCapture={liveNetwork.clearCapture} />,
+    },
+    {
+      id: "live-jamming",
+      title: "9.6 kbit/s, that's my jam!",
+      notes: "Three RCPs send 64-byte frames at 9.6 kbit/s toward an absent node. Their 30 ms offsets and 90 ms cycles keep at least one jammer transmitting. The main controller then tries direct 100 kbit/s plug commands. Jammer frames are filtered from the trace. Press the LR device button and compare the received count before and during flooding.",
+      content: <NetworkJammingSlide frames={live.capture.frames}
+        ready={setup.ready} busy={live.busy} cleanupRequired={live.cleanupRequired}
+        on={live.on} outcome={live.outcome}
+        lrPresses={live.lrPresses}
+        lrReady={!!live.hardware.connections.find(connection => connection.kind === "main")
+          ?.nodes.some(node => node.id === 256 && node.ready)}
+        onPlugAction={(action, speed) => void liveNetwork.action(action, false, speed)}
+        onClearCapture={liveNetwork.clearCapture}
+        onResetLrPresses={liveNetwork.resetLrPresses} />,
+    },
+    {
+        id: "live-beam-jamming",
+        title: "Master Blaster (Jammin')",
+        notes: "Three RCPs send 1100 ms Classic 40 kbit/s beams toward absent node 007. RCP-1, RCP-2, and RCP-3 transmit one at a time with no intentional gap. The tinySA waterfall shows each beam. Try the plug or press the LR device button during the sequence.",
+        content: <BeamJammingSlide frames={live.capture.frames} ready={setup.ready} busy={live.busy}
+          cleanupRequired={live.cleanupRequired} on={live.on} outcome={live.outcome}
+          lrPresses={live.lrPresses}
+          lrReady={!!live.hardware.connections.find(connection => connection.kind === "main")
+            ?.nodes.some(node => node.id === 256 && node.ready)}
+          onPlugAction={(action, speed) => void liveNetwork.action(action, false, speed)}
+          onClearCapture={liveNetwork.clearCapture}
+          onResetLrPresses={liveNetwork.resetLrPresses} />,
+    },
+    {
+      id: "live-return-route-relay",
+      title: "Who's in the middle?",
+      notes: "A priority SUC return route takes node 003 through RCP-2 as node 005 and RCP-1 as node 004 to controller node 001. In forward mode the report is relayed all the way to the controller. In drop mode node 005 still forwards the report to node 004, which silently drops it, then a forged final-hop routed acknowledgement is returned to node 003 so it does not retry.",
+      content: <ReturnRouteRelaySlide frames={live.capture.frames} nodes={live.nodes} ready={setup.ready && !live.busy}
+        onClearCapture={liveNetwork.clearCapture} />,
+    });
   const present = () => setSetupOpen(false);
   return <>
     <ConnectionsContext.Provider value={{ ready: setup.ready, open: openSetup }}>

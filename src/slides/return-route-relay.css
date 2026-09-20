@@ -1,0 +1,14 @@
+.demo-slide .return-route-controls {
+  position: absolute; top: 336px; left: 120px; width: 212px; height: 624px;
+  padding: 22px; display: flex; flex-direction: column; gap: 24px;
+}
+.return-route-section { display: flex; flex-direction: column; gap: 14px; }
+.return-route-section h3 {
+  margin: 0; color: var(--color-accent-700); font: 21px var(--font-heading);
+  letter-spacing: .05em; text-transform: uppercase;
+}
+.return-route-section p { margin: 0; color: var(--color-neutral-700); font-size: 19px; line-height: 1.35; }
+.return-route-actions { display: flex; flex-direction: column; gap: 10px; }
+.return-route-actions .demo-button { flex: 1; }
+.return-route-section .demo-outcome { min-height: 44px; padding-block: 8px; }
+.return-route-lanes { position: absolute; top: 336px; left: 376px; width: 1424px; height: 624px; }

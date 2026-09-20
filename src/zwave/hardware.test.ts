@@ -170,8 +170,32 @@ test("disconnect releases ownership and reconnect reuses the selected port and i
   assert.equal(instances[0].destroyed, true);
   await hardware.reconnect("rcp", "left");
   assert.deepEqual(counts(), { closes: 1, picks: 1, loaded: 2 });
-  assert.deepEqual(opened, [460800, 460800]);
+  assert.deepEqual(opened, [500000, 500000]);
   assert.deepEqual(cachePaths, ["/zwave-cache/rcp/left", "/zwave-cache/rcp/left"]);
+});
+
+test("restoring each required RCP retries its saved port once", async () => {
+  const { port } = setup();
+  let attempts = 0;
+  const serial = new EventTarget() as Serial;
+  const hardware = new HardwareRuntime({
+    serial: () => serial,
+    load: async () => ({
+      createMain: () => new FakeInstance(),
+      createZniffer: () => new FakeInstance(),
+      createRcp: () => {
+        const instance = new FakeInstance();
+        instance.start = async () => {
+          attempts++;
+          if (attempts === 1) throw new Error("First RCP handshake failed");
+        };
+        return instance;
+      },
+    }) as unknown as Awaited<ReturnType<HardwareDependencies["load"]>>,
+  });
+  await hardware.restoreConnection("rcp", "rcp-1", port);
+  assert.equal(attempts, 2);
+  assert.equal(hardware.getSnapshot().connections[0].status, "ready");
 });
 
 test("Zniffer initializes and captures until explicitly stopped", async () => {

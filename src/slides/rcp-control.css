@@ -1,0 +1,21 @@
+.demo-slide .rcp-control-panel {
+  position: absolute; top: 336px; left: 120px; width: 480px; height: 624px;
+  padding: 26px; display: flex; flex-direction: column; gap: 22px;
+}
+.rcp-control-panel .zc-head { flex: none; }
+.rcp-control-group { display: flex; flex-direction: column; gap: 14px; }
+.rcp-control-group h3 {
+  margin: 0; color: var(--color-accent-700); font: 22px var(--font-heading);
+  letter-spacing: .05em; text-transform: uppercase;
+}
+.rcp-control-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.rcp-control-actions .demo-button { min-width: 0; padding-inline: 12px; }
+.rcp-level {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 16px;
+  color: var(--color-neutral-700); font: 21px var(--font-body);
+}
+.rcp-level output { color: var(--color-accent-900); font-family: var(--font-heading); }
+.rcp-level input { grid-column: 1 / -1; width: 100%; accent-color: var(--color-accent-800); }
+.rcp-control-panel .demo-outcome { min-height: 58px; max-height: 112px; overflow-y: auto; }
+.rcp-control-panel .demo-outcome em { font-size: 19px; overflow-wrap: anywhere; }
+.rcp-control-lanes { position: absolute; top: 336px; left: 648px; width: 1152px; height: 624px; }

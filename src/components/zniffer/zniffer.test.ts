@@ -202,7 +202,7 @@ test("all frame log variants render the entire retained history", () => {
     assert.match(markup, /64 frames/);
     assert.match(markup, /data-own-arrow-keys/);
     assert.equal(markup.includes("Time · ms"), variant === "full");
-    assert.equal(markup.includes('role="columnheader">RSSI'), variant !== "hops");
+    assert.equal(markup.includes('role="columnheader">RSSI'), variant === "full");
   }
 });
 
@@ -214,9 +214,12 @@ test("logs keep payloads next to the route with speed and measurements on the ri
     if (variant === "hops") {
       assert.deepEqual(headers, ["#", "Path · direction", "Frame", "Speed"]);
       assert.deepEqual(cells, ["zn-seq", "zn-path-cell", "zn-frame-cell", "zn-speed-cell"]);
-    } else {
+    } else if (variant === "full") {
       assert.deepEqual(headers, ["#", ...(variant === "full" ? ["Time · ms"] : []), "Path · direction", "Frame", "Speed", "RSSI", "Ch"]);
       assert.deepEqual(cells, ["zn-seq", ...(variant === "full" ? ["zn-t"] : []), "zn-path-cell", "zn-frame-cell", "zn-speed-cell", "zn-rssi-cell", "zn-ch"]);
+    } else {
+      assert.deepEqual(headers, ["#", "Path · direction", "Frame", "Speed"]);
+      assert.deepEqual(cells, ["zn-seq", "zn-path-cell", "zn-frame-cell", "zn-speed-cell"]);
     }
   }
 });
@@ -227,13 +230,23 @@ test("payload columns are left-aligned and use remaining width before right-hand
     const rules = [...css.matchAll(new RegExp(`\\.zn-live-${variant} \\.zn-live-cols \\{ grid-template-columns: ([^;]+);`, "g"))];
     assert.equal(rules.length, 2);
     for (const [, columns] of rules) {
-      assert.match(columns, /(?:200|170)px minmax\(0, 1fr\) \d+px \d+px \d+px$/);
+      const metadataColumns = variant === "full" ? 3 : 1;
+      assert.match(columns, new RegExp(`(?:200|170)px minmax\\(0, 1fr\\)(?: \\d+px){${metadataColumns}}$`));
       assert.equal((columns.match(/1fr/g) ?? []).length, 1);
     }
   }
   assert.match(css, /\.zn-live-hops \.zn-live-cols \{ grid-template-columns: 46px minmax\(200px, 1fr\) 180px 78px;/);
   assert.match(css, /\.zn-live \.zn-frame-cell \{ text-align: left; justify-self: stretch;/);
   assert.match(css, /\.zn-live \.zn-payload-chip \{[^}]*text-align: left;/);
+});
+
+test("compact logs use each frame route and abbreviate routed responses", () => {
+  const frames = createBaselineFrames();
+  const markup = renderToStaticMarkup(createElement(FrameLog, { frames, variant: "compact", onClear }));
+  assert.match(markup, /R-ACK/);
+  assert.doesNotMatch(markup, /ROUTED ACK/);
+  const rows = [...markup.matchAll(/<div[^>]*data-frame-id="[^"]+"[^>]*>(.*?)<\/div>/g)].map(match => match[1]);
+  assert.ok(rows.some(row => row.includes('aria-label="Node 2 to node 3; path 1, 2, 3"')));
 });
 
 test("route columns contain three nodes and two arrows at both breakpoints", () => {

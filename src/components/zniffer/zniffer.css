@@ -13,7 +13,7 @@
 .zn-live .zn-live-rows { min-height: 0; flex: 1; overflow: auto; scrollbar-color: var(--color-accent-400) transparent; }
 .zn-live .zn-live-cols { gap: 12px; padding: 0 18px; }
 .zn-live-full .zn-live-cols { grid-template-columns: 46px 84px 200px minmax(0, 1fr) 78px 112px 36px; }
-.zn-live-compact .zn-live-cols { grid-template-columns: 38px 200px minmax(0, 1fr) 68px 100px 30px; }
+.zn-live-compact .zn-live-cols { grid-template-columns: 38px 200px minmax(0, 1fr) 68px; }
 .zn-live-hops .zn-live-cols { grid-template-columns: 46px minmax(200px, 1fr) 180px 78px; }
 .zn-live .zn-hd { height: 43px; flex: none; font-size: 19px; }
 .zn-live .zn-r { min-height: 62px; padding-top: 8px; padding-bottom: 8px; box-sizing: border-box; }
@@ -55,7 +55,7 @@
   .zn-live .zn-bar .meta { font-size: 15px; }
   .zn-live .zn-live-cols { gap: 9px; padding-left: 12px; padding-right: 12px; }
   .zn-live-full .zn-live-cols { grid-template-columns: 34px 64px 170px minmax(0, 1fr) 60px 88px 26px; }
-  .zn-live-compact .zn-live-cols { grid-template-columns: 34px 170px minmax(0, 1fr) 60px 88px 26px; }
+  .zn-live-compact .zn-live-cols { grid-template-columns: 34px 170px minmax(0, 1fr) 60px; }
   .zn-live .zn-hd { font-size: 16px; letter-spacing: .03em; }
   .zn-live .zn-type, .zn-live .sp { font-size: 19px; padding: 5px 6px; }
   .zn-live .zn-payload-chip { --zn-payload-font-size: 19px; }

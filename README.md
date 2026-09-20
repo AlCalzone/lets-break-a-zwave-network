@@ -1,6 +1,6 @@
 # Let's break a Z-Wave network
 
-A browser presentation built from the Claude Design export. The 14 authored slides are preserved. Live routing demonstrations follow "Acknowledgments" and "Retry, reroute, explore", appearing as slides 7 and 12. Three mock demo slides follow the authored deck.
+A browser presentation built from the Claude Design export. The 14 authored slides are preserved. Live routing demonstrations follow "Acknowledgments" and "Retry, reroute, explore", appearing as slides 7 and 12. A live beaming demonstration follows slide 15. An RCP control demonstration follows slide 17. Two three-RCP network-jamming demonstrations are followed by a two-RCP return-route relay demonstration. Together they complete the 21-slide deck.
 
 The routing demonstration uses real Z-Wave devices and a separate Zniffer capture adapter through Web Serial. The three appended demos retain their simulated nodes and frames. The waterfall connects to a real local `sdrtop` process and tinySA.
 
@@ -25,16 +25,16 @@ Open the presentation in desktop Chrome or Edge on localhost. Open connection se
 
 1. Connect **Main controller · Driver** to the Serial API controller for node 001. Wait for the interviews of nodes 002 and 003 to complete.
 2. Connect **Zniffer · live radio capture** to a separate adapter running Zniffer firmware. Capture starts when initialization succeeds.
-3. Use **Add RCP** for each additional radio co-processor needed for later experiments. These use dedicated Z-Wave JS `RCPHost` instances. They are optional for the first live demonstration.
+3. Connect **RCP · rcp-1**, **rcp-2**, and **rcp-3** to the three 500000-baud radio co-processors used by the live radio demonstrations. Use **Add RCP** for any additional radio co-processors.
 4. Select **Start presentation**. Use **Connections** in the slide navigation to reopen setup.
 
-Every interactive slide also has a top-right **Connections** link with Ready or Not ready status. `src/zwave/setup-status.ts` defines setup readiness centrally: a ready main controller and a capturing Zniffer with confirmed radio settings. RCPs are currently optional. Individual demonstrations also check their required nodes and command classes.
+Every interactive slide also has a top-right **Connections** link with Ready or Not ready status. `src/zwave/setup-status.ts` defines setup readiness centrally: a ready main controller, a capturing Zniffer, and the three required RCP connections with confirmed radio settings. Individual demonstrations also check their required nodes and command classes.
 
 Connecting configures EU Long Range on each radio. The Zniffer uses Classic + LR A. Optional RCPs use the same channel configuration. Setup shows the confirmed settings. Unsupported regions, unsupported channel configurations, or mismatched readback prevent the connection from becoming ready. The main Driver may soft-reset its controller to apply the region.
 
 **Re-interview all** on the main Driver row requests fresh interviews for every device, including Long Range nodes. Running interviews continue unchanged. The controller itself is excluded. Per-node readiness and failures appear in setup. Sleeping devices may need waking to finish.
 
-Each Connect button opens Chrome's serial-device picker. A port can have only one role at a time. Close other applications holding the same serial ports before connecting. The main Driver, Zniffer, and RCP instances stay connected across slide changes. Reloading the page releases the browser instances. Connection setup stays closed until opened explicitly. The top-right **X** closes setup at any time. Live controls remain disabled until the required connections are ready.
+Each Connect button opens Chrome's serial-device picker. A port can have only one role at a time. Close other applications holding the same serial ports before connecting. The browser saves each granted port selection and restores it on the next page load when Chrome still grants access to the same port. `rcp-1`, `rcp-2`, and `rcp-3` use two connection attempts because their first RCP handshake can fail. The main Driver, Zniffer, and RCP instances stay connected across slide changes. Reloading the page releases the browser instances. Connection setup stays closed until opened explicitly. The top-right **X** closes setup at any time. Live controls remain disabled until the required connections are ready.
 
 For securely included devices, expand **Network security keys** before connecting. Enter the network's existing 32-character hexadecimal keys and select **Save keys**. Classic and Long Range keys have separate fields. The main Driver and Zniffer receive the same configured keys. Keys are saved in local storage for this browser profile and origin. Reloading restores them before connecting. Disconnect both devices before replacing keys. **Clear saved keys** removes them. Clearing browser site data also removes them.
 
@@ -46,6 +46,10 @@ Fallback values are embedded in the generated browser bundle. Keep that build lo
 
 The Driver's cache is isolated from RCP caches in browser storage. Keep the same browser profile and localhost origin for rehearsals. Z-Wave device access is browser-side; the Node service owns only the tinySA terminal.
 
+## Live beaming demonstration
+
+The slide after authored slide 13 sends raw beam frames from `rcp-1` toward nonexistent nodes. Classic beams target node 004. Fragmented Long Range beams target LR node 257. **Start beaming** runs one continuous beam for up to 65.535 seconds. **Stop beaming** aborts the active transmission. The presets send a 275 ms short beam, a 1100 ms long beam, or 16 fragmented beam frames of 112 ms every 200 ms on the configured Long Range channel. The right side embeds the live tinySA waterfall.
+
 ## Live routing demonstration
 
 Slide 7 contains the real node 002 plug controls and a Zniffer lane view for nodes 001, 002, and 003. Choose Direct or Via 003, then select 9.6k, 40k, or 100k. On and Off send only `node.commandClasses["Binary Switch"].set(...)`. There is no follow-up Get. An acknowledged command updates the plug toggle to the requested state. Unsupervised commands show "acknowledged". Successful supervision shows "confirmed". Failed commands leave the toggle unchanged. Device reports still update the displayed state. PING uses `node.ping()`.
@@ -54,7 +58,17 @@ Each demonstration calls `controller.setPriorityRoute(2, [], speed)` for direct 
 
 Z-Wave JS priority routes select the first transmission attempt. The controller may fall back after a failed attempt. The lane view displays the actual over-the-air hops and speeds captured by the Zniffer.
 
-Capture is filtered to the main network's Home ID and nodes 001, 002, and 003. Both Direct and Via 003 display lanes in order 001, 003, 002. The repeater remains visible because the controller can fall back to a routed transmission. Switching modes preserves capture history. Starting an action clears the displayed capture history. Capture continues afterward to include delayed acknowledgments. Up to 512 frames are retained. Filtered, invalid, unsupported, and evicted frames are counted in setup. Driver command results never generate lane-view frames.
+Capture is filtered to the main network's Home ID and nodes 001, 002, 003, and 256. Routing slides display lanes in order 001, 003, 002 and hide node 256. The repeater remains visible because the controller can fall back to a routed transmission. Switching modes preserves capture history. Starting an action clears the displayed capture history. Capture continues afterward to include delayed acknowledgments. Up to 512 frames are retained. Filtered, invalid, unsupported, and evicted frames are counted in setup. Driver command results never generate lane-view frames.
+
+## Network-jamming demonstration
+
+The slide after the RCP control demonstration uses `rcp-1`, `rcp-2`, and `rcp-3`. Each RCP repeatedly sends a 64-byte direct frame at 9.6 kbit/s toward nonexistent node 007. The RCPs use source node IDs 004, 005, and 006. Their 90 ms cycles begin 30 ms apart. Each frame occupies about 53.3 ms on air, so at least one RCP transmits continuously. CCA is disabled for these frames. Leaving the slide stops the loop.
+
+The two jamming slides use the same three-column layout: controls, compact Zniffer frame log, and live tinySA waterfall. The first floods node 007 with 9.6 kbit/s frames. The next sends 1100 ms Classic 40 kbit/s beams toward node 007. The beam RCPs transmit one at a time in round-robin order with no intentional gap. A busy channel retries the same RCP after 50 ms. Leaving either slide stops its jammer and aborts an active beam.
+
+The plug controls use the main Driver with an empty priority route at 100 kbit/s. Their status shows whether On, Off, or Ping succeeds during the jamming demonstrations. Jammer frames are excluded from the lane view as unrelated nodes. The filtered-frame counter shows that this traffic is still being received by the Zniffer.
+
+The Long Range counter waits for Central Scene commands from node 256. It ignores key release and held-down refresh events. It also ignores a command with the previous Central Scene sequence number. The slide includes node 256 in its Zniffer lanes so a received LR press is visible before flooding and can be compared with presses attempted during the 9.6 kbit/s flood.
 
 ## Run
 
@@ -66,6 +80,8 @@ SDRTOP_BIN=/absolute/path/to/sdrtop npm run dev
 ```
 
 Open the localhost URL printed by the server. Configure the receiver once from the waterfall demo. Supply the tinySA port, center frequency, and span. A successful launch saves those settings. Future service starts launch sdrtop and begin reception automatically in the background.
+
+The generated `sdrtop` configuration uses 64 sweep points and fixes the tinySA resolution bandwidth at 300 kHz. This favors short waterfall sweeps over frequency resolution. It retains 512 waterfall history rows. `sdrtop` does not expose a VBW setting, so the tinySA firmware controls VBW.
 
 ```sh
 npm run build

@@ -4,6 +4,8 @@ import type { CaptureEvent } from "./capture";
 import { configureRcpRadio, configureZnifferRadio, verifyMainRadio } from "./radio-config";
 
 export type HardwareKind = "main" | "zniffer" | "rcp";
+export const primaryRcpId = "rcp-1";
+export const jammerRcpIds = ["rcp-1", "rcp-2", "rcp-3"] as const;
 export type HardwareStatus = "disconnected" | "selecting" | "connecting" | "interviewing" | "ready" | "disconnecting" | "error";
 export type FrameListener = (frame: Frame, rawData: Uint8Array) => void;
 export type CorruptedFrameListener = (frame: CorruptedFrame, rawData: Uint8Array) => void;
@@ -46,6 +48,7 @@ export interface HardwareDependencies {
   serial: () => Serial | undefined;
   load: () => Promise<Runtime>;
 }
+export type PortSelectionListener = (kind: HardwareKind, id: string, port: SerialPort) => void;
 
 export class HardwareRuntime {
   private entries = new Map<string, Entry>();
@@ -54,6 +57,7 @@ export class HardwareRuntime {
   private frameListeners = new Set<FrameListener>();
   private corruptedFrameListeners = new Set<CorruptedFrameListener>();
   private znifferErrorListeners = new Set<(error: Error) => void>();
+  private portSelectionListeners = new Set<PortSelectionListener>();
   private snapshot: HardwareSnapshot;
   private serialWithListener?: Serial;
   private mainBusy = false;
@@ -83,6 +87,10 @@ export class HardwareRuntime {
   subscribeZnifferErrors = (listener: (error: Error) => void) => {
     this.znifferErrorListeners.add(listener);
     return () => { this.znifferErrorListeners.delete(listener); };
+  };
+  subscribePortSelections = (listener: PortSelectionListener) => {
+    this.portSelectionListeners.add(listener);
+    return () => { this.portSelectionListeners.delete(listener); };
   };
   setCaptureForwarding(enabled: boolean) {
     this.forwardCaptures = enabled;
@@ -230,7 +238,7 @@ export class HardwareRuntime {
     this.watchDisconnects(serial);
     const selection = serial.requestPort();
     this.publish(entry, { status: "selecting", error: undefined });
-    return this.begin(entry, selection);
+    return this.beginWithRetry(entry, selection);
   }
 
   reconnect(kind: HardwareKind, id?: string): Promise<void> {
@@ -239,12 +247,53 @@ export class HardwareRuntime {
     if (entry.operation || entry.teardown || entry.instance) return Promise.reject(new Error("Disconnect this connection before reconnecting"));
     if (!entry.port) return Promise.reject(new Error("Choose a serial port first"));
     this.publish(entry, { status: "connecting", error: undefined });
-    return this.begin(entry, Promise.resolve(entry.port));
+    return this.beginWithRetry(entry, Promise.resolve(entry.port));
   }
 
-  private begin(entry: Entry, selection: Promise<SerialPort>) {
+  restoreConnection(kind: HardwareKind, id: string, port: SerialPort): Promise<void> {
+    if (kind === "main" && this.mainBusy) return Promise.reject(new Error("Wait for the main-controller operation to finish"));
+    const entry = this.entry(kind, id);
+    if (entry.operation || entry.teardown || entry.instance) return Promise.reject(new Error("Disconnect this connection before restoring it"));
+    const serial = this.dependencies.serial();
+    if (!serial) {
+      const error = new Error("Web Serial requires Chrome or Edge on HTTPS or localhost");
+      this.publish(entry, { status: "error", error: error.message });
+      return Promise.reject(error);
+    }
+    this.watchDisconnects(serial);
+    this.publish(entry, { status: "connecting", error: undefined });
+    return this.beginWithRetry(entry, Promise.resolve(port));
+  }
+
+  private beginWithRetry(entry: Entry, selection: Promise<SerialPort>) {
+    const attempts = entry.state.kind === "rcp" && jammerRcpIds.includes(entry.state.id as typeof jammerRcpIds[number]) ? 2 : 1;
     const generation = ++entry.generation;
-    const operation = this.connect(entry, selection, generation);
+    const operation = (async () => {
+      let selectedPort: SerialPort;
+      try {
+        selectedPort = await selection;
+      } catch (error) {
+        if (generation === entry.generation) {
+          this.publish(entry, {
+            status: "error",
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        throw error;
+      }
+      let failure: unknown;
+      for (let attempt = 0; attempt < attempts; attempt++) {
+        if (generation !== entry.generation) return;
+        try {
+          await this.connect(entry, Promise.resolve(selectedPort), generation);
+          return;
+        } catch (error) {
+          failure = error;
+          if (attempt + 1 === attempts) throw error;
+        }
+      }
+      throw failure;
+    })();
     entry.operation = operation;
     void operation.finally(() => {
       if (entry.operation === operation) entry.operation = undefined;
@@ -260,10 +309,11 @@ export class HardwareRuntime {
       if (owner && owner !== entry) throw new Error(`This port is already assigned to ${owner.state.kind} ${owner.state.id}`);
       this.owners.set(port, entry);
       entry.port = port;
+      for (const listener of this.portSelectionListeners) listener(entry.state.kind, entry.state.id, port);
       this.publish(entry, { status: "connecting", portInfo: port.getInfo(), nodes: [], capturing: false, rfRegion: undefined, channelConfig: undefined });
       const runtime = await this.dependencies.load();
       if (generation !== entry.generation) return;
-      await port.open({ baudRate: entry.state.kind === "rcp" ? 460800 : 115200 });
+      await port.open({ baudRate: entry.state.kind === "rcp" ? 500000 : 115200 });
       if (generation !== entry.generation) return;
       const cacheDir = `/zwave-cache/${entry.state.kind}/${entry.state.id}`;
       const instance = entry.state.kind === "main" ? runtime.createMain(port, cacheDir, this.security)

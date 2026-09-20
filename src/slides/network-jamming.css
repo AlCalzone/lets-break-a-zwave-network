@@ -1,0 +1,23 @@
+.demo-slide .jam-control-panel {
+  position: absolute; top: 336px; left: 120px; width: 528px; height: 624px;
+  padding: 24px; display: flex; flex-direction: column; gap: 18px;
+}
+.jam-section { display: flex; flex-direction: column; gap: 10px; }
+.jam-section + .jam-section { padding-top: 16px; border-top: 1px solid var(--color-accent-300); }
+.jam-section h3 {
+  margin: 0; color: var(--color-accent-700); font: 21px var(--font-heading);
+  letter-spacing: .05em; text-transform: uppercase;
+}
+.jam-section p { margin: 0; color: var(--color-neutral-700); font-size: 19px; }
+.jam-actions, .jam-plug-actions { display: flex; gap: 10px; align-items: center; }
+.jam-actions .demo-button { flex: 1; }
+.jam-plug-actions .demo-segments { min-width: 0; }
+.jam-section .demo-outcome { min-height: 44px; padding-block: 8px; }
+.jam-lr-counter {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center; column-gap: 16px;
+}
+.jam-lr-counter strong { color: var(--color-accent-900); font: 52px var(--font-heading); }
+.jam-lr-counter .demo-button { padding-inline: 14px; }
+.jam-trace { position: absolute; top: 336px; left: 696px; width: 528px; height: 624px; }
+.jam-waterfall { position: absolute; top: 336px; left: 1272px; width: 528px; height: 624px; }
+.jam-trace > *, .jam-waterfall > * { height: 100%; }

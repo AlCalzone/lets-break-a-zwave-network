@@ -1,0 +1,29 @@
+.demo-slide .beam-jam-controls {
+  position: absolute; top: 336px; left: 120px; width: 528px; height: 624px;
+  padding: 24px; display: flex; flex-direction: column; gap: 18px;
+}
+.beam-jam-section { display: flex; flex-direction: column; gap: 10px; }
+.beam-jam-section + .beam-jam-section {
+  padding-top: 16px; border-top: 1px solid var(--color-accent-300);
+}
+.beam-jam-section h3 {
+  margin: 0; color: var(--color-accent-700); font: 21px var(--font-heading);
+  letter-spacing: .05em; text-transform: uppercase;
+}
+.beam-jam-section p { margin: 0; color: var(--color-neutral-700); font-size: 19px; }
+.beam-jam-actions, .beam-jam-plug-actions { display: flex; gap: 10px; align-items: center; }
+.beam-jam-actions .demo-button { flex: 1; }
+.beam-jam-plug-actions .demo-segments { min-width: 0; }
+.beam-jam-section .demo-outcome { min-height: 44px; padding-block: 8px; }
+.beam-jam-lr-counter {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center; column-gap: 16px;
+}
+.beam-jam-lr-counter strong { color: var(--color-accent-900); font: 52px var(--font-heading); }
+.beam-jam-lr-counter .demo-button { padding-inline: 14px; }
+.beam-jam-trace {
+  position: absolute; left: 696px; top: 336px; width: 528px; height: 624px;
+}
+.beam-jam-waterfall {
+  position: absolute; left: 1272px; top: 336px; width: 528px; height: 624px;
+}
+.beam-jam-trace > *, .beam-jam-waterfall > * { height: 100%; }
