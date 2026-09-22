@@ -7,15 +7,17 @@ export function Corners() {
 
 export function SlideFrame({
   title,
+  showConnections = true,
   children,
 }: {
   title: string;
+  showConnections?: boolean;
   children: ReactNode;
 }) {
   return (
     <section className="slide content demo-slide">
       <div className="board" aria-hidden="true"><Corners /></div>
-      <ConnectionsLink />
+      {showConnections && <ConnectionsLink />}
       <h2 className="slide-title">{title}</h2>
       {children}
       <div className="page-foot" aria-hidden="true" />

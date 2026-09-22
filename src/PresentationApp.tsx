@@ -18,6 +18,8 @@ import { networkJammer } from "./zwave/network-jammer";
 import { BeamJammingSlide } from "./slides/BeamJammingSlide";
 import { beamJammer } from "./zwave/beam-jammer";
 import { ReturnRouteRelaySlide } from "./slides/ReturnRouteRelaySlide";
+import { QuestionsSlide } from "./slides/QuestionsSlide";
+import { MitigationsSlide } from "./slides/MitigationsSlide";
 import { findSavedSerialPort, loadSerialSelections, saveSerialSelection } from "./zwave/serial-store";
 
 const fallbackSecurityKeys = import.meta.env.VITE_ZWAVE_SECURITY_KEYS;
@@ -206,6 +208,8 @@ export function PresentationApp({ slides }: { slides: Slide[] }) {
       content: <ReturnRouteRelaySlide frames={live.capture.frames} nodes={live.nodes} ready={setup.ready && !live.busy}
         onClearCapture={liveNetwork.clearCapture} />,
     });
+  presentation.push({ id: "mitigations", title: "What can be done about it?", notes: "Encrypting the application layer, supervised requests, and encrypting the network layer all raise the bar against these attacks.", content: <MitigationsSlide /> });
+  presentation.push({ id: "questions", title: "Questions?", notes: "Open the floor. Offer to run any live demo scenario again.", content: <QuestionsSlide /> });
   const present = () => setSetupOpen(false);
   return <>
     <ConnectionsContext.Provider value={{ ready: setup.ready, open: openSetup }}>

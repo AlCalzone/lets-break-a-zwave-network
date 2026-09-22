@@ -1,6 +1,6 @@
 # Let's break a Z-Wave network
 
-A browser presentation built from the Claude Design export. The 14 authored slides are preserved. Live routing demonstrations follow "Acknowledgments" and "Retry, reroute, explore", appearing as slides 7 and 12. A live beaming demonstration follows slide 15. An RCP control demonstration follows slide 17. Two three-RCP network-jamming demonstrations are followed by a two-RCP return-route relay demonstration. Together they complete the 21-slide deck.
+A browser presentation built from the Claude Design export. The 14 authored slides are preserved. Live routing demonstrations follow "Acknowledgments" and "Retry, reroute, explore", appearing as slides 7 and 12. A live beaming demonstration follows slide 15. An RCP control demonstration follows slide 17. Two three-RCP network-jamming demonstrations are followed by a two-RCP return-route relay demonstration, a "What can be done about it?" mitigations slide, and a closing "Questions?" slide. Together they complete the 23-slide deck.
 
 The routing demonstration uses real Z-Wave devices and a separate Zniffer capture adapter through Web Serial. The three appended demos retain their simulated nodes and frames. The waterfall connects to a real local `sdrtop` process and tinySA.
 
@@ -76,16 +76,18 @@ Use Node.js 22.12+ and desktop Chrome or Edge.
 
 ```sh
 npm install
-SDRTOP_BIN=/absolute/path/to/sdrtop npm run dev
+npm start
 ```
 
-Open the localhost URL printed by the server. Configure the receiver once from the waterfall demo. Supply the tinySA port, center frequency, and span. A successful launch saves those settings. Future service starts launch sdrtop and begin reception automatically in the background.
+`npm start` looks for a tinySA at `/dev/serial/by-id/*tinysa*`, and when it finds one, writes `.local/sdrtop/setup.json` with that port, a center frequency of 866.625 MHz, and a 6.65 MHz span (the Z-Wave EU Long Range channel used by the live demos), overwriting any earlier saved settings, before launching the dev server and opening the presentation in Chrome. To use different settings, change center/span from the waterfall demo's **Configure** panel after startup — those changes persist until the next `npm start` runs the auto-detect again. If no tinySA is detected, `npm start` still launches normally and prints a warning; configure the receiver manually from the waterfall demo instead. A successful launch (manual or automatic) saves its settings, and future service starts launch sdrtop and begin reception automatically in the background.
+
+If `SDRTOP_BIN` isn't set and plain `sdrtop` isn't on `PATH`, `npm start` also checks for a `sdrtop` checkout built alongside this repo (`../sdrtop/target/release/sdrtop`, then `.../debug/sdrtop`) and uses it if found. Set `SDRTOP_BIN=/absolute/path/to/sdrtop` yourself to override either lookup.
 
 The generated `sdrtop` configuration uses 64 sweep points and fixes the tinySA resolution bandwidth at 300 kHz. This favors short waterfall sweeps over frequency resolution. It retains 512 waterfall history rows. `sdrtop` does not expose a VBW setting, so the tinySA firmware controls VBW.
 
 ```sh
 npm run build
-SDRTOP_BIN=/absolute/path/to/sdrtop npm start
+SDRTOP_BIN=/absolute/path/to/sdrtop npm run serve
 ```
 
 Fonts and artwork are bundled locally. The presentation needs no internet connection after installation.

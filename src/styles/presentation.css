@@ -12,6 +12,30 @@ html, body, #root { width: 100%; height: 100%; overflow: hidden; }
 .connections-link:focus-visible { outline: 3px solid var(--color-accent-900); outline-offset: 6px; }
 .title-connections { left: 120px; bottom: 52px; }
 .header-connections { top: calc(2 * var(--baseline) - 32px); right: var(--pad-x); }
+.repo-link {
+  position: absolute; left: 164px; bottom: 68px; z-index: 2;
+  font-family: "IBM Plex Mono", monospace; font-size: 16px; line-height: 1;
+  color: var(--color-accent-700); white-space: nowrap;
+}
+.repo-link:hover, .repo-link:focus-visible { text-decoration: underline; }
+.repo-link:focus-visible { outline: 3px solid var(--color-accent-900); outline-offset: 6px; }
+.questions-slide { justify-content: center; align-items: center; text-align: center; gap: 24px; }
+.questions-title {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: var(--type-display); line-height: 1; margin: 0; letter-spacing: 0;
+}
+.questions-subtitle {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: var(--type-subtitle); margin: 0; color: var(--color-accent-700);
+}
+.mitigations-props { position: absolute; left: var(--pad-x); width: 816px;
+  top: calc(8.5 * var(--baseline) - 1cap);
+  display: grid; grid-template-columns: 816px; row-gap: calc(1.5 * var(--baseline)); }
+.mitigations-props > div { min-height: calc(3 * var(--baseline)); }
+.mitigations-props h3 { margin: 0; font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: var(--type-subtitle); line-height: var(--baseline); text-box: trim-both cap alphabetic; }
+.mitigations-props p { margin: calc(var(--baseline) - 1cap) 0 0; font-size: var(--type-small);
+  line-height: var(--baseline); text-box: trim-both cap alphabetic; color: var(--color-accent-700); }
 .slide-slot > .slide, .authored-slide, .authored-slide > .slide {
   position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden;
 }

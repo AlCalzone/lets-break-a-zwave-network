@@ -14,7 +14,11 @@ const slides: Slide[] = [...authoredSlides.map((slide) => ({
   notes: slide.notes,
   content: <>
     <div className="authored-slide" dangerouslySetInnerHTML={{ __html: slide.html }} />
-    {slide.number === 1 && <ConnectionsLink placement="title" />}
+    {slide.number === 1 && <>
+      <ConnectionsLink placement="title" />
+      <a className="repo-link" href="https://github.com/AlCalzone/lets-break-a-zwave-network"
+        target="_blank" rel="noreferrer">github.com/AlCalzone/lets-break-a-zwave-network</a>
+    </>}
   </>,
 }))];
 
